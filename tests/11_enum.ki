@@ -1,0 +1,22 @@
+using lib.basic;
+
+Day: enum {
+    MONDAY,
+    TUESDAY = 3,
+    WEDNESDAY
+}
+
+print_day(day: Day) {
+    if day == Day.MONDAY {
+        print("Monday\n");
+    } else if day == Day.TUESDAY {
+        print("Tuesday\n");
+    } else {
+        print("Wednesday\n");
+    }
+}
+
+main() {
+    print_day(Day.TUESDAY);
+    print_day(Day.WEDNESDAY);
+}

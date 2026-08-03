@@ -1,0 +1,10 @@
+import _13_export as exp;
+
+main() {
+    x := exp.sum(1, 2);
+}
+
+
+other() {
+    x := exp.sum(exp.dum(), 2);
+}

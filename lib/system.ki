@@ -1,0 +1,86 @@
+// system - OS-level utilities for use in the basic library.
+// https://github.com/notjoshki/ki-v3
+// NOTE: This should only be edited by compiler developers.
+
+export #syscalls, #constants;
+
+#constants {
+STDIN: const 0;
+STDOUT: const 1;
+STDERR: const 2;
+
+O_RDONLY: const 0;
+O_RDWR: const 0x02;
+O_CREAT: const 0x40;
+O_APPEND: const 0x400;
+
+PROT_NONE: const 0;
+PROT_READ: const 1;
+PROT_WRITE: const 2;
+
+MAP_PRIVATE: const 0x20;
+MAP_ANONYMOUS: const 0x2;
+}
+
+// Returns the number of bytes read on success, -1 on error.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+read(file_descriptor: i32, buffer: &u8, count: usize): i32 {
+    asm("xor rax, rax\nsyscall");
+}
+
+// Returns the number of bytes written on success, -1 on error.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+write(file_descriptor: i32, buffer: &u8, count: usize): i32 {
+    asm("mov rax, 1\nsyscall");
+}
+
+// Returns a file descriptor on success, a negative value on error.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+open(filename: &char, flags: u32, mode: u32): i32 {
+    asm("mov rax, 2\nsyscall");
+}
+
+// Returns 0 on success.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+close(file_descriptor: i32): i32 {
+    asm("mov rax, 3\nsyscall");
+}
+
+// Returns an address on success, 0 on error.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+mmap(address: &void, size: usize, protection: i32, flags: i32, file_descriptor: i32, offset: i32): &void {
+    asm("mov r10, rcx\nmov rax, 9\nsyscall");
+}
+
+// Returns -1 on error.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+mprotect(start: &void, size: usize, protection: i32): i32 {
+    asm("mov rax, 10\nsyscall");
+}
+
+// Returns 0 on success.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+munmap(address: &void, size: usize): i32 {
+    asm("mov rax, 11\nsyscall");
+}

@@ -1,0 +1,7 @@
+main() {
+    x: i32 = get(1, get(2, 4f, 111), 5);
+}
+
+get(x: i32, y: f32, z: i64): i32 {
+    return y - x;
+}

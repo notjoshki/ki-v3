@@ -1,0 +1,10 @@
+main() {
+}
+
+get(): i16 {
+    return 5;
+}
+
+getf(): f64 {
+    return 3.14;
+}

@@ -1,0 +1,18 @@
+main() {
+    z: i64 = 999;
+    x: i64 = 0;
+
+    while x < 10 {
+        y: i8 = 1;
+        x += y;
+        continue;
+        x *= 2;
+    }
+
+    x = 0;
+
+    do {
+        x += 1
+        break;
+    } while x == 10;
+}

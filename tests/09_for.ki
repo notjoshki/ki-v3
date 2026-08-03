@@ -1,0 +1,18 @@
+main() {
+    sum: u32 = 0;
+
+    for i: u32 = 0..10 {
+        sum += i;
+    }
+
+    for rev i := 10..0 {
+        sum -= i;
+    }
+
+    sum = 10;
+    x: u32;
+
+    for x = sum..100 {
+        sum *= x;
+    }
+}

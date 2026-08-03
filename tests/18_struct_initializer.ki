@@ -1,0 +1,16 @@
+using ki.basic;
+
+Point: struct {
+    x: i32;
+    y: i32;
+}
+
+main() {
+    point := { .x = 1, .y = 2 }: Point;
+
+    points: Point[2];
+    x := 1;
+    points[x] = { .x = 3, .y = 4 }: Point;
+
+    println(int_to_string(points[1].y));
+}

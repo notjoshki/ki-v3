@@ -1,0 +1,16 @@
+// NOTE: Not intended to be ran as a main file!
+export sum, dum;
+export #stuff;
+
+sum(x: f64, y: f64): f64 {
+    return x + y;
+}
+
+dum(): i32 {
+    return 1;
+}
+
+#stuff
+pum() {
+
+}

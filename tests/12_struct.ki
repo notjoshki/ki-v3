@@ -1,0 +1,37 @@
+Point: struct {
+    x: i32;
+    y: i32;
+    z: i32;
+}
+
+print_int(number: i32) {
+    asm("add rdi, '0'
+         push rdi
+         mov rax, 1
+         mov rdi, 1
+         lea rsi, [rsp]
+         mov rdx, 1
+         syscall
+         mov byte [rsp], 10
+         mov rax, 1
+         mov rdi, 1
+         lea rsi, [rsp]
+         mov rdx, 1
+         syscall
+         add rsp, 8\n");
+}
+
+main() {
+    p: Point;
+    set_point(&p);
+
+    print_int(p.x);
+    print_int(p.y);
+    print_int(p.z);
+}
+
+set_point(p: &Point) {
+    p.x = 1;
+    p.y = 2;
+    p.z = p.y * p.x;
+}

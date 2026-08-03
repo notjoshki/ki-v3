@@ -1,0 +1,484 @@
+// basic - Bare essentials for Ki programming.
+// https://github.com/notjoshki/ki-v3
+
+import system;
+export #io, #memory, #strings;
+
+// 17 pages of 4KiB = 65 Kib, 16 pages for data and 1 for the guard page.
+HEAP_SIZE: const 65536;
+GUARD_PAGE_SIZE: const 4096;
+
+INT_BUFFER_CAPACITY: const 33;
+STRING_CAPACITY: const 16;
+
+FLOAT_EPSILON_TOLERANCE: const 0.000001;
+
+#memory
+byte: alias u8;
+
+#io
+File: alias i32;
+
+// Heap definitions.
+asm("section .bss\n_ki_heap: resq 1\n_ki_heap_ptr: resq 1\n_ki_heap_free_list: resq 1\nsection .text");
+
+// Print a string to standard output.
+#io
+print(str: &string) {
+    system.write(system.STDOUT, str.data, str.length);
+}
+
+// Print a character to standard output.
+#io
+print_char(c: char) {
+    system.write(system.STDOUT, &c, 1);
+}
+
+// Print a string and a newline to standard output.
+#io
+println(str: &string) {
+    c: char = 10;
+    system.write(system.STDOUT, str.data, str.length);
+    system.write(system.STDOUT, &c, 1);
+}
+
+// Receive a line of input from standard input.
+#io
+scan(buffer: &char, capacity: usize, strip_newline: bool = true) {
+    chars_read := system.read(system.STDIN, buffer, capacity);
+
+    if chars_read < 0 {
+        return;
+    }
+
+    if strip_newline {
+        buffer[chars_read - 1] = '\0';
+    }
+
+    buffer[chars_read] = '\0';
+}
+
+// Copy a number of bytes from one pointer to another.
+#memory
+copy_bytes(destination: &byte, source: &byte, count: usize) {
+    for i := 0..count {
+        destination[i] = source[i];
+    }
+}
+
+// Set the value of a number of bytes in a pointer.
+#memory
+set_bytes(destination: &byte, value: byte, count: usize) {
+    for i := 0..count {
+        destination[i] = value;
+    }
+}
+
+// Compare the values of bytes between two pointers.
+#memory
+compare_bytes(destination: &byte, source: &byte, count: usize): usize {
+    same: usize = 0;
+
+    for i := 0..count {
+        if destination[i] == source[i] {
+            same += 1;
+        }
+    }
+
+    return same;
+}
+
+// Allocates a new string.
+#strings
+new_string(capacity: usize = STRING_CAPACITY): &string {
+    new_capacity: usize = STRING_CAPACITY;
+
+    while capacity > new_capacity {
+        new_capacity *= 2;
+    }
+
+    str: &string = alloc(sizeof(string));
+    str.data = alloc(new_capacity + 1);
+    str.length = 0;
+    str.capacity = new_capacity;
+    return str;
+}
+
+// Frees a string from the heap 
+#strings
+delete_string(str: &string) {
+    free(str.data);
+    free(str);
+}
+
+// Allocate a new string and copy the data from a string into it.
+#strings
+copy_string(str: &string): &string {
+    new: &string = new_string(str.capacity);
+    assign_string(new, str);
+    return new;
+}
+
+// Compare the lengths and characters of two strings.
+#strings
+compare_string(lhs: &string, rhs: &string): bool {
+    if lhs.length != rhs.length {
+        return 0;
+    }
+
+    return compare_bytes(lhs.data, rhs.data, lhs.length) == lhs.length;
+}
+
+#strings
+reserve_string(str: &string, new_length: usize) {
+    if str.capacity >= new_length {
+        return;
+    }
+
+    new_capacity: usize = STRING_CAPACITY;
+
+    while new_length > new_capacity {
+        new_capacity *= 2;
+    }
+
+    if str.capacity == new_capacity {
+        return;
+    }
+
+    asm(";here");
+    str.data = realloc(str.data, new_capacity + 1);
+    str.capacity = new_capacity;
+
+}
+
+// Assign each character from one string into another.
+#strings
+assign_string(destination: &string, source: &string) {
+    reserve_string(destination, source.length);
+    copy_bytes(destination.data, source.data, source.length);
+    destination.data[source.length] = '\0';
+    destination.length = source.length;
+}
+
+#strings
+append_string(destination: &string, source: &string) {
+    new_length: usize = destination.length + source.length;
+    reserve_string(destination, new_length);
+
+    j: usize = destination.length;
+
+    for i := 0..source.length {
+        destination.data[j] = source.data[i];
+        j += 1;
+    }
+
+    destination.data[j] = '\0';
+    destination.length = new_length;
+}
+
+// Allocate a new string and copy a cstring into it.
+#strings
+buffer_to_string(buffer: &char): &string {
+    len := buffer_length(buffer);
+    str: &string = alloc(len + 1);
+    copy_bytes(str.data, buffer, len);
+
+    str.data[len] = '\0';
+    str.length = len;
+    str.capacity = len;
+    return str;
+}
+
+// Find the length of a char buffer.
+#strings
+buffer_length(buffer: &char): usize {
+    len: usize = 0;
+
+    while buffer[len] != '\0' {
+        len += 1;
+    }
+
+    return len;
+
+}
+
+// Reverse the order of characters in a string.
+#strings
+reverse_string(str: &string) {
+    if str.length <= 1 {
+        return;
+    }
+
+    count: usize = str.length - 1;
+    start: usize = 0;
+    temp: char;
+
+    while start < count {
+        temp = str.data[start];
+        str.data[start] = str.data[count];
+        str.data[count] = temp;
+
+        start += 1;
+        count -= 1;
+    }
+}
+
+// Allocate a new string and convert an integer into a string.
+#strings
+int_to_string(number: i64, buffer: &string = null, base: u32 = 10): &string {
+    str: &string = alloc(INT_BUFFER_CAPACITY);
+    str.capacity = INT_BUFFER_CAPACITY;
+
+    len: usize = 0;
+    is_negative: bool = false;
+
+    if number == 0 {
+        str.data[0] = '0';
+        str.data[1] = '\0';
+        str.length = 1;
+        return str;
+    }
+
+    if number < 0 {
+        is_negative = true;
+        number = -number;
+    }
+
+    while number != 0 {
+        str.data[len] = number % base + '0';
+        len += 1;
+        number /= base;
+    }
+
+    if is_negative {
+        str.data[len] = '-';
+        len += 1;
+    }
+
+    str.data[len] = '\0';
+    str.length = len;
+    reverse_string(str);
+    return str;
+}
+
+// Allocate a new string and convert a floating-point into a string.
+#strings
+float_to_string(number: f64, decimal_points: u32 = 2): &string {
+    mantissa: i64 = number;
+    str := int_to_string(mantissa);
+
+    if decimal_points <= 0 {
+        return str;
+    }
+
+    len := str.length;
+
+    if len + decimal_points > str.capacity {
+        new_size: usize = len + decimal_points + 1;
+        str = realloc(str, new_size);
+        str.capacity = new_size;
+    }
+
+    if number < 0 {
+        number = -number;
+        mantissa = -mantissa;
+    }
+
+    str.data[len] = '.';
+    len += 1;
+
+    exponent: f64 = number - mantissa;
+
+    /*
+    if decimal_points > 3 {
+        exponent -= FLOAT_EPSILON_TOLERANCE;
+    }
+    */
+
+    for i := 0..decimal_points {
+        exponent *= 10;
+        str.data[len] = cast(i64 exponent) + '0';
+
+        len += 1;
+        exponent -= cast(i64 exponent);
+    }
+
+    str.data[len] = '\0';
+    str.length = len;
+    return str;
+}
+
+// Open a new file descriptor.
+#io
+open_file(name: &string, mode: char): File {
+    flags: u32;
+
+    if mode == 'w' {
+        flags = system.O_RDWR | system.O_CREAT;
+    } else if mode == 'a' {
+        flags = system.O_APPEND | system.O_CREAT;
+    } else if mode == 'r' {
+        flags = system.O_RDONLY;
+    }
+
+    return system.open(name.data, flags, 644o);
+}
+
+// Close a file descriptor.
+#io
+close_file(file: File): i32 {
+    return system.close(file);
+}
+
+// Write to a file descriptor.
+#io
+write_file(file: File, text: &string): i32 {
+    return system.write(file, text.data, text.length);
+}
+
+// Read from a file descriptor.
+#io
+read_file(file: File, buffer: &char, capacity: usize): i32 {
+    return system.read(file, buffer, capacity);
+}
+
+// Set the allocation size of heap objects at chosen indexes.
+set_heap_free_list_sizes(start_index: usize, value: usize, count: usize) {
+    free_list := get_ki_heap_free_list();
+
+    for i := 0..count {
+        free_list[start_index + i] = value;
+    }
+}
+
+// Allocate memory for the Ki heap.
+#memory
+__internal_allocate_heap() {
+    set_ki_heap(system.mmap(null, HEAP_SIZE + GUARD_PAGE_SIZE, system.PROT_READ | system.PROT_WRITE,
+        system.MAP_PRIVATE | system.MAP_ANONYMOUS, -1, 0));
+
+    system.mprotect(cast(&void get_ki_heap() + HEAP_SIZE), GUARD_PAGE_SIZE, system.PROT_NONE);
+
+    set_ki_heap_free_list(system.mmap(null, HEAP_SIZE * sizeof(usize), system.PROT_READ | system.PROT_WRITE,
+        system.MAP_PRIVATE | system.MAP_ANONYMOUS, -1, 0));
+
+    set_heap_free_list_sizes(0, 0, HEAP_SIZE);
+}
+
+// Free the memory from the Ki heap.
+@omit_frame_pointer
+#memory
+__internal_free_heap() {
+    system.munmap(get_ki_heap(), HEAP_SIZE + GUARD_PAGE_SIZE);
+    system.munmap(get_ki_heap_free_list(), HEAP_SIZE * sizeof(usize));
+}
+
+// Get the heap allocation pointer.
+@omit_frame_pointer
+@ignore_missing_return
+get_ki_heap(): &void {
+    asm("mov rax, qword [_ki_heap]");
+}
+
+// Get the heap allocation pointer.
+@omit_frame_pointer
+@ignore_missing_return
+get_ki_heap_pointer(): usize {
+    asm("mov rax, qword [_ki_heap_ptr]");
+}
+
+// Get the heap free list.
+@omit_frame_pointer
+@ignore_missing_return
+get_ki_heap_free_list(): &usize {
+    asm("mov rax, qword [_ki_heap_free_list]");
+}
+
+// Get the heap allocation pointer.
+@omit_frame_pointer
+@onetime_arguments
+set_ki_heap(value: &void) {
+    asm("mov qword [_ki_heap], rdi");
+}
+
+// Get the heap allocation pointer.
+@omit_frame_pointer
+@onetime_arguments
+set_ki_heap_pointer(value: usize) {
+    asm("mov qword [_ki_heap_ptr], rdi");
+}
+
+// Get the heap allocation pointer.
+@omit_frame_pointer
+@onetime_arguments
+set_ki_heap_free_list(value: &usize) {
+    asm("mov qword [_ki_heap_free_list], rdi");
+}
+
+// Search for an empty space in the heap before the heap pointer that is big enough for the allocation size.
+find_empty_space_before_heap_pointer(size: usize): &void {
+    ptr := get_ki_heap_pointer();
+    free_list := get_ki_heap_free_list();
+
+    for i := 0..ptr {
+        if free_list[i] > 0 {
+            continue;
+        }
+
+        empty := true;
+
+        for j := 0..size {
+            if free_list[i + j] > 0 {
+                empty = false;
+                break;
+            }
+        }
+
+        if empty {
+            return &get_ki_heap()[i];
+        }
+    }
+
+    return null;
+}
+
+#memory
+heap_address_to_index(address: &void): usize {
+    return cast(usize address - get_ki_heap());
+}
+
+// Allocate a portion of memory onto the heap and return the address.
+#memory
+alloc(size: usize): &void {
+    index: usize;
+    space := find_empty_space_before_heap_pointer(size);
+
+    if space == null {
+        index = get_ki_heap_pointer();
+        space = &get_ki_heap()[index];
+    } else {
+        index = cast(usize space - get_ki_heap());
+    }
+
+    set_ki_heap_pointer(index + size);
+    set_heap_free_list_sizes(index, size, size);
+    return space;
+}
+
+// Free a portion of memory from the heap.
+#memory
+free(pointer: &void) {
+    index: usize = cast(usize pointer - get_ki_heap());
+    size: usize = get_ki_heap_free_list()[index];
+    set_heap_free_list_sizes(index, 0, size);
+}
+
+// Copy the data from the old pointer into a new allocated pointer and free the old pointer.
+#memory
+realloc(old_pointer: &void, new_size: usize): &void {
+    new_ptr := alloc(new_size);
+    old_size := 32;//get_ki_heap_free_list()[0];
+    copy_bytes(new_ptr, old_pointer, old_size);
+    free(old_pointer);
+    return new_ptr;
+}

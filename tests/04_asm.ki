@@ -1,0 +1,4 @@
+main() {
+    asm("mov rax, 10
+         mov rbx, rax\n");
+}

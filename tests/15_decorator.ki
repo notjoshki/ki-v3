@@ -1,0 +1,14 @@
+// Still too experimental for users.
+// Don't use decorators yet.
+
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+write(file_descriptor: i32, buffer: &u8, count: usize): i32 {
+    asm("mov rax, 1\nsyscall");
+}
+
+main() {
+    message := "Hello, world!\n";
+    write(1, message.data, message.length);
+}

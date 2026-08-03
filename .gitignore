@@ -1,0 +1,7 @@
+ki
+*.asm
+*.o
+*.out
+*.kir
+.vscode
+main.ki

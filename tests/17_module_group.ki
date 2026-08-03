@@ -1,0 +1,21 @@
+from _13_export import #stuff;
+export #math;
+
+main() {
+    pum(); // From #stuff.
+}
+
+#math
+my_add(x: i32, y: i32): i32 {
+    return x + y;
+}
+
+#math
+my_sub(x: i32, y: i32): i32 {
+    return x - y;
+}
+
+#math
+my_div(x: i32, y: i32): i32 {
+    return x / y;
+}

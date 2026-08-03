@@ -1,0 +1,18 @@
+// This is like a co ordinate or something.
+#structs
+Point: struct {
+    x: f32;
+    y: f32;
+}
+
+
+// You'd write a bunch of stuff above the function in source code and stuff.
+// Thought about doing it Java-like with all @param and stuff, but decided against it.
+#uhhhstuff
+do_epic_thing(point: &Point) {
+    // ...
+}
+
+do_more_stuff() {
+    
+}

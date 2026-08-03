@@ -1,0 +1,5 @@
+main() {
+    y: f32 = 1.5;
+    x: i32 = cast(i8 y);
+    z: usize = cast(f32 x);
+}
