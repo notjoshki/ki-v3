@@ -16,6 +16,8 @@
 
 #define nop (LIR_Operand){ .type = OPER_NONE, .data_type = NO_DATA_TYPE }
 
+#define IR_NO_DEREFERENCE 0x01
+
 #define INSTRUCTION_CAPACITY 16
 
 #define T1_REGISTER_NUMBER 0
@@ -55,10 +57,16 @@ static void push_instruction(LIR *lir, LIR_Opcode type, LIR_Operand destination,
         .type = type, .destination = destination, .source = source };
 }
 
+static bool should_reference_instead_of_load(Context *context, HIR_Data *data) {
+    Data_Type dt = get_hir_data_type(context, data);
+    return (dt.array_size > 0 || dt.primitive_type == PRIM_CUSTOM || 
+        data->type == DATA_STRUCT_MEMBER || data->type == DATA_INDEX || data->type == DATA_DEREFERENCE);
+}
+
 // This specific instruction needs special treatment because of certain values (arrays and structs)
 // not actually being variables, in the sense that they are treated as pointers.
 static void push_load(LIR *lir, LIR_Operand destination, LIR_Operand source) {
-    if (source.data_type.array_size > 0 || source.data_type.primitive_type == PRIM_CUSTOM || source.type == OPER_POINTER)
+    if (source.data_type.array_size > 0 || source.data_type.primitive_type == PRIM_CUSTOM)
         push_instruction(lir, source.data_type.pointer_count > 0 || source.type == OPER_POINTER ? LIR_LOAD : LIR_REFERENCE, destination, source);
     else
         push_instruction(lir, LIR_LOAD, destination, source);
@@ -145,6 +153,8 @@ static void do_math_operation(LIR *lir, const Token_Type oper, const Data_Type *
     push_instruction(lir, math_operator_to_opcode(oper), t1(*type), t2(*type));
     push_instruction(lir, LIR_PUSH, nop, t1(*type));
 }
+
+static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool dereference);
 
 static LIR_Operand hir_math_to_lir_operand(LIR *lir, HIR_Data *hir) {
     HIR_Data *data = hir->expression.data;
@@ -373,7 +383,20 @@ static LIR_Operand hir_index_to_lir_operand(LIR *lir, HIR_Data *data) {
         item_size = primitive_type_to_size(data_type_to_primitive_type(&item_type));
 
     //push_instruction(lir, LIR_REFERENCE, t1(index_type), hir_data_to_operand(lir, data->index.base));
+
+    //if (data->index.base->type == DATA_STRUCT_MEMBER)
+      //  push_load(lir, t1(index_type), struct_member_to_operand(lir, data->index.base, false));
+    //els
+    const size_t flags = lir->flags;
+    lir->flags |= IR_NO_DEREFERENCE;
+
     push_load(lir, t1(index_type), hir_data_to_operand(lir, data->index.base));
+
+    lir->flags = flags;
+
+    if (data->index.base->type == DATA_STRUCT_MEMBER)
+        push_load(lir, t1(index_type), lir_pointer(index_type, T1_REGISTER_NUMBER));
+
     push_instruction(lir, LIR_PUSH, nop, t1(index_type));
 
     push_load(lir, t2(index_type), hir_data_to_operand(lir, data->index.index));
@@ -383,6 +406,12 @@ static LIR_Operand hir_index_to_lir_operand(LIR *lir, HIR_Data *data) {
 
     push_instruction(lir, LIR_POP, t1(index_type), nop);
     push_instruction(lir, LIR_ADD, t1(index_type), t2(index_type));
+
+    if (lir->flags & IR_NO_DEREFERENCE) {
+        item_type.pointer_count++;
+        return t1(item_type);
+    }
+
     return lir_pointer(item_type, T1_REGISTER_NUMBER);
 }
 
@@ -417,24 +446,39 @@ static LIR_Operand hir_cast_to_operand(LIR *lir, HIR_Data *data) {
 
 static LIR_Operand hir_dereference_to_operand(LIR *lir, HIR_Data *data, const bool as_value) {
     const Data_Type ptr_type = get_hir_data_type(lir->context, data->dereference.value);
+
+    const size_t flags = lir->flags;
+    lir->flags |= IR_NO_DEREFERENCE;
     push_load(lir, t1(ptr_type), hir_data_to_operand(lir, data->dereference.value));
+    lir->flags = flags;
 
     if (!as_value)
         return t1(ptr_type);
 
     Data_Type deref_type = get_hir_data_type(lir->context, data);
-    push_load(lir, t1(deref_type), lir_pointer(ptr_type, T1_REGISTER_NUMBER));
+
+    if (data->dereference.value->type == DATA_STRUCT_MEMBER)
+        push_load(lir, t1(ptr_type), lir_pointer(ptr_type, T1_REGISTER_NUMBER));
+
+    if (lir->flags & IR_NO_DEREFERENCE) 
+        return t1(ptr_type);
+
+    //push_instruction(lir, LIR_MUL, t1(deref_type), lir_pointer(deref_type.pointer_count > 0 ? ptr_type : deref_type, T1_REGISTER_NUMBER));
+    push_instruction(lir, LIR_LOAD, t1(deref_type), lir_pointer(deref_type, T1_REGISTER_NUMBER));
     return t1(deref_type);
 }
 
-static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool as_value) {
+static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool dereference) {
     const Custom_Type *type = get_custom_type(lir->context, data->struct_member.custom_type_symbol_uid);
     const Custom_Type_Member *member_symbol = get_custom_type_member(lir->context, type->uid, data->struct_member.member_symbol_uid);
 
     Data_Type struct_type = get_hir_data_type(lir->context, data->struct_member.lhs);
+    bool is_stack = false;
 
-    if (struct_type.pointer_count == 0)
+    if (struct_type.pointer_count == 0) {
         struct_type.pointer_count++;
+        is_stack = true;
+    }
 
     push_load(lir, t1(struct_type), hir_data_to_operand(lir, data->dereference.value));
 
@@ -452,12 +496,9 @@ static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool
 
     Data_Type member_type = member_symbol->data_type;
 
-    if (!as_value) {
-        member_type.pointer_count++;
-        return t1(member_type);
-    }
-
-    if (member_type.pointer_count == 0)
+    //if (!dereference || member_type.pointer_count > 0) {
+        //member_type.pointer_count++;
+    if (dereference && !(lir->flags & IR_NO_DEREFERENCE))
         push_load(lir, t1(member_type), lir_pointer(member_type, T1_REGISTER_NUMBER));
 
     return t1(member_type);
@@ -593,34 +634,49 @@ static void push_pointer_assignment(LIR *lir, HIR *hir) {
 
     // Dereferences and indexes require calculating the correct pointer location first, 
     // which will corrupt the value already loaded.
-    Data_Type dt = get_hir_data_type(lir->context, &hir->assignment.lhs);
-    const Data_Type deref_type = dt; // Dereferences will modify the above data type.
+    Data_Type lhs_type = get_hir_data_type(lir->context, &hir->assignment.lhs);
+    const Data_Type deref_type = lhs_type; // Dereferences will modify the above data type.
 
-    if (dt.array_size > 0)
-        dt.array_size = 0;
+    //if (lhs_type.array_size > 0)
+      //  lhs_type.array_size = 0;
 
     // Dereference needs the pointer to store into, not the value in the pointer.
-    LIR_Operand lhs = is_deref ? hir_dereference_to_operand(lir, &hir->assignment.lhs, false) : 
-        hir_data_to_operand(lir, &hir->assignment.lhs);
+    //LIR_Operand lhs = //is_deref ? hir_dereference_to_operand(lir, &hir->assignment.lhs, false) : 
+     //   hir_data_to_operand(lir, &hir->assignment.lhs);
 
-    if (is_deref)
-        dt.pointer_count++;
+    //if (is_deref)
+      //  dt.pointer_count++;
 
-    if (is_deref)
-        push_load(lir, t1(dt), lhs);
-    else
-        push_instruction(lir, LIR_REFERENCE, t1(dt), lhs);
+    //if (is_deref)
+        //push_load(lir, t1(lhs_type), lhs);
+    //else
+      //  push_instruction(lir, LIR_REFERENCE, t1(dt), lhs);
+
+    const size_t flags = lir->flags;
+    lir->flags |= IR_NO_DEREFERENCE;
+    LIR_Operand lhs = hir_data_to_operand(lir, &hir->assignment.lhs);
+    lir->flags = flags;
+    push_load(lir, t1(lhs_type), lhs);
+
+    //push_load(lir, t1(lhs_type), lhs);
+
+    // We may be referencing a pointer, thus creating &&type.
+    // Like for example loading a pointer struct member from a stack struct.
+    // We now need to dereference to get the actual pointer.
+    // TODO
 
     if (!is_complex_expression(&hir->assignment.rhs)) {
-        push_load(lir, t2(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
-        push_instruction(lir, LIR_STORE, lir_pointer(is_deref ? deref_type : dt, T1_REGISTER_NUMBER), t2(dt));
+        push_load(lir, t2(lhs_type), hir_data_to_operand(lir, &hir->assignment.rhs));
+        //push_instruction(lir, LIR_STORE, lir_pointer(is_deref ? deref_type : dt, T1_REGISTER_NUMBER), t2(dt));
+        push_instruction(lir, LIR_STORE, lir_pointer(lhs_type, T1_REGISTER_NUMBER), t2(lhs_type));
         return;
     }
 
-    push_instruction(lir, LIR_PUSH, nop, t1(dt));
-    push_load(lir, t1(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
-    push_instruction(lir, LIR_POP, t2(dt), nop);
-    push_instruction(lir, LIR_STORE, lir_pointer(is_deref ? deref_type : dt, T2_REGISTER_NUMBER), t1(dt));
+    push_instruction(lir, LIR_PUSH, nop, t1(lhs_type));
+    push_load(lir, t1(lhs_type), hir_data_to_operand(lir, &hir->assignment.rhs));
+    push_instruction(lir, LIR_POP, t2(lhs_type), nop);
+    //push_instruction(lir, LIR_STORE, lir_pointer(is_deref ? deref_type : dt, T2_REGISTER_NUMBER), t1(dt));
+    push_instruction(lir, LIR_STORE, lir_pointer(lhs_type, T2_REGISTER_NUMBER), t1(lhs_type));
 }
 
 static void push_struct_member_assignment(LIR *lir, HIR *hir) {
@@ -842,7 +898,7 @@ static void push_hir(LIR *lir, HIR *hir) {
 LIR hir_to_lir(Context *context, HIR *hir) {
     LIR lir = { .context = context, .instructions = malloc(INSTRUCTION_CAPACITY * sizeof(LIR_Instruction)), 
         .count = 0, .capacity = INSTRUCTION_CAPACITY, .label_count = 0,
-        .current_break_label = 0, .current_continue_label = 0 };
+        .current_break_label = 0, .current_continue_label = 0, .flags = 0 };
 
     for (size_t i = 0; i < hir->block.count; i++)
         push_hir(&lir, &hir->block.nodes[i]);

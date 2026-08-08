@@ -240,8 +240,9 @@ size_t new_string_label(State *state, const char *string, const size_t length) {
     }
 
     char *code = malloc(length + 64);
-    sprintf(code, ".c%zu: dq %zu\ndq %zu\ndb `%.*s`,0\n", state->constant_label_count, 
-        length_without_backslashes, length_without_backslashes, (int)length, string);
+    sprintf(code, ".c%zu: dq %zu\ndq %zu\ndq .c%zus\n.c%zus: db `%.*s`,0\n", state->constant_label_count, 
+        length_without_backslashes, length_without_backslashes, state->constant_label_count,
+        state->constant_label_count, (int)length, string);
 
     append_whole_string(&state->rodata_section, code);
     free(code);

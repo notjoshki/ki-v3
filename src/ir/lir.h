@@ -154,6 +154,7 @@ typedef struct {
     size_t label_count;
     size_t current_break_label;
     size_t current_continue_label;
+    size_t flags;
 } LIR;
 
 static inline bool lir_registers_equal(const LIR_Operand *op1, const LIR_Operand *op2) {

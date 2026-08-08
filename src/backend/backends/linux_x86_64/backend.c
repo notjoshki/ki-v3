@@ -202,10 +202,13 @@ static char *pointer_operand_to_string(LIR_Operand *operand) {
 static char *sizeof_operand_to_string(State *state, LIR_Operand *operand) {
     char *str = malloc(16);
 
-    if (operand->sizeof_.data_type.primitive_type == PRIM_CUSTOM)
-        sprintf(str, "%zu", struct_data_type_to_size(state->context, &operand->sizeof_.data_type, 
-            get_module(state->context, (size_t)operand->data_type.module_uid)));
-    else
+    if (operand->sizeof_.data_type.primitive_type == PRIM_CUSTOM) {
+        if (operand->sizeof_.data_type.pointer_count == 0)
+            sprintf(str, "%zu", struct_data_type_to_size(state->context, &operand->sizeof_.data_type, 
+                get_module(state->context, (size_t)operand->data_type.module_uid)));
+        else
+            strcpy(str, "8");
+    } else
         sprintf(str, "%zu", primitive_type_to_size(data_type_to_primitive_type(&operand->sizeof_.data_type)));
 
     return str;
@@ -580,7 +583,11 @@ static char *emit_store(State *state, LIR_Instruction *inst) {
 
         if (dst_is_register && dst_is_lower_bit_size) {
             char *dst_reg = register_operand_to_string(state, dst, src_type);
-            sprintf(code, "mov %s, %s\n", dst_reg, reg);
+
+            free(reg);
+            reg = register_operand_to_string(state, src, src_type);
+
+            sprintf(code, "mov %s, %s ;grrr\n", dst_reg, reg);
             free(dst_reg);
         } else if (!dst_is_register && dst_is_lower_bit_size) {
             free(reg);

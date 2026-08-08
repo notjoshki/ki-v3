@@ -376,6 +376,7 @@ __internal_free_heap() {
 // Get the heap allocation pointer.
 @omit_frame_pointer
 @ignore_missing_return
+#memory
 get_ki_heap(): &void {
     asm("mov rax, qword [_ki_heap]");
 }
@@ -469,6 +470,7 @@ alloc(size: usize): &void {
 #memory
 free(pointer: &void) {
     index: usize = cast(usize pointer - get_ki_heap());
+    asm(";here");
     size: usize = get_ki_heap_free_list()[index];
     set_heap_free_list_sizes(index, 0, size);
 }
@@ -477,7 +479,7 @@ free(pointer: &void) {
 #memory
 realloc(old_pointer: &void, new_size: usize): &void {
     new_ptr := alloc(new_size);
-    old_size := 32;//get_ki_heap_free_list()[0];
+    old_size := get_ki_heap_free_list()[0];
     copy_bytes(new_ptr, old_pointer, old_size);
     free(old_pointer);
     return new_ptr;
