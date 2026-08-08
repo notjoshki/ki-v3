@@ -145,7 +145,6 @@ reserve_string(str: &string, new_length: usize) {
         return;
     }
 
-    asm(";here");
     str.data = realloc(str.data, new_capacity + 1);
     str.capacity = new_capacity;
 
@@ -226,9 +225,7 @@ reverse_string(str: &string) {
 // Allocate a new string and convert an integer into a string.
 #strings
 int_to_string(number: i64, buffer: &string = null, base: u32 = 10): &string {
-    str: &string = alloc(INT_BUFFER_CAPACITY);
-    str.capacity = INT_BUFFER_CAPACITY;
-
+    str: &string = new_string(INT_BUFFER_CAPACITY);
     len: usize = 0;
     is_negative: bool = false;
 

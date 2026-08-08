@@ -57,12 +57,6 @@ static void push_instruction(LIR *lir, LIR_Opcode type, LIR_Operand destination,
         .type = type, .destination = destination, .source = source };
 }
 
-static bool should_reference_instead_of_load(Context *context, HIR_Data *data) {
-    Data_Type dt = get_hir_data_type(context, data);
-    return (dt.array_size > 0 || dt.primitive_type == PRIM_CUSTOM || 
-        data->type == DATA_STRUCT_MEMBER || data->type == DATA_INDEX || data->type == DATA_DEREFERENCE);
-}
-
 // This specific instruction needs special treatment because of certain values (arrays and structs)
 // not actually being variables, in the sense that they are treated as pointers.
 static void push_load(LIR *lir, LIR_Operand destination, LIR_Operand source) {
@@ -400,6 +394,10 @@ static LIR_Operand hir_index_to_lir_operand(LIR *lir, HIR_Data *data) {
     push_instruction(lir, LIR_PUSH, nop, t1(index_type));
 
     push_load(lir, t2(index_type), hir_data_to_operand(lir, data->index.index));
+
+    if (data->index.index->type == DATA_STRUCT_MEMBER)
+        push_load(lir, t2(index_type), lir_pointer(index_type, T2_REGISTER_NUMBER));
+
     push_instruction(lir, LIR_MUL, t2(index_type), 
         //(LIR_Operand){ .type = OPER_SIZEOF, .data_type = index_type, .sizeof_.data_type = item_type });
         (LIR_Operand){ .type = OPER_INT, .data_type = index_type, .int_.u64 = item_size });
@@ -473,12 +471,9 @@ static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool
     const Custom_Type_Member *member_symbol = get_custom_type_member(lir->context, type->uid, data->struct_member.member_symbol_uid);
 
     Data_Type struct_type = get_hir_data_type(lir->context, data->struct_member.lhs);
-    bool is_stack = false;
 
-    if (struct_type.pointer_count == 0) {
+    if (struct_type.pointer_count == 0)
         struct_type.pointer_count++;
-        is_stack = true;
-    }
 
     push_load(lir, t1(struct_type), hir_data_to_operand(lir, data->dereference.value));
 
@@ -630,12 +625,12 @@ static void push_pointer_assignment(LIR *lir, HIR *hir) {
         return;
     }
 
-    const bool is_deref = hir->assignment.lhs.type == DATA_DEREFERENCE;
+    //const bool is_deref = hir->assignment.lhs.type == DATA_DEREFERENCE;
 
     // Dereferences and indexes require calculating the correct pointer location first, 
     // which will corrupt the value already loaded.
     Data_Type lhs_type = get_hir_data_type(lir->context, &hir->assignment.lhs);
-    const Data_Type deref_type = lhs_type; // Dereferences will modify the above data type.
+    //const Data_Type deref_type = lhs_type; // Dereferences will modify the above data type.
 
     //if (lhs_type.array_size > 0)
       //  lhs_type.array_size = 0;

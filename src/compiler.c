@@ -214,7 +214,7 @@ static bool assemble_files(const Compiler *compiler, char **files, const size_t 
 
     for (size_t i = 0; i < file_count; i++) {
         if (!assemble_file(compiler, files[i], &objs[i])) {
-            //remove_files(files, file_count);
+            remove_files(files, file_count);
             cleanup(NULL, objs, NULL, i + 1, false);
             *out_objects = NULL;
             return false;
