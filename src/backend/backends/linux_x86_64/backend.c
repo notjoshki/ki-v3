@@ -388,9 +388,12 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
             break;
         case PRIM_I16:
         case PRIM_U16:
-            if (src_type == PRIM_I8 || src_type == PRIM_U8)
-                sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
-            else {
+            if (src_type == PRIM_I8 || src_type == PRIM_U8) {
+                if (src->type == OPER_INT)
+                    sprintf(code, "mov %s, %s\n", dst_str, src_str);
+                else
+                    sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
+            } else {
                 dst_reg_str = register_operand_to_string(state, dst, src_type);
 
                 if (should_return_none_from_self_load(dst, src, code, dst_str, src_str, dst_reg_str))
@@ -401,9 +404,12 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
             break;
         case PRIM_I32:
         case PRIM_U32:
-            if (src_type == PRIM_I8 || src_type == PRIM_U8 || src_type == PRIM_I16 || src_type == PRIM_U16)
-                sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
-            else {
+            if (src_type == PRIM_I8 || src_type == PRIM_U8 || src_type == PRIM_I16 || src_type == PRIM_U16) {
+                if (src->type == OPER_INT)
+                    sprintf(code, "mov %s, %s\n", dst_str, src_str);
+                else
+                    sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
+            } else {
                 dst_reg_str = register_operand_to_string(state, dst, src_type);
 
                 if (should_return_none_from_self_load(dst, src, code, dst_str, src_str, dst_reg_str))
@@ -413,9 +419,12 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
             }
             break;
         default:
-            if (src_type == PRIM_I8 || src_type == PRIM_U8 || src_type == PRIM_I16 || src_type == PRIM_U16)
-                sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
-            else if (src_type == PRIM_I32 && src->type != OPER_INT)
+            if (src_type == PRIM_I8 || src_type == PRIM_U8 || src_type == PRIM_I16 || src_type == PRIM_U16) {
+                if (src->type == OPER_INT)
+                    sprintf(code, "mov %s, %s\n", dst_str, src_str);
+                else
+                    sprintf(code, "mov%cx %s, %s\n", extension_type_to_char(src_type), dst_str, src_str);
+            } else if (src_type == PRIM_I32 && src->type != OPER_INT)
                 sprintf(code, "movsxd %s, %s\n", dst_str, src_str);
             else {
                 dst_reg_str = register_operand_to_string(state, dst, src_type);

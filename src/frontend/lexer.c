@@ -180,7 +180,9 @@ static Token lex_digit(Lexer *lexer) {
     int64_t i64;
     uint64_t u64;
     char *endptr;
-    step(lexer);
+
+    if (tolower(lexer->current_char) == 'h' || tolower(lexer->current_char) == 'o')
+        step(lexer);
 
     if (is_negative) {
         errno = 0;

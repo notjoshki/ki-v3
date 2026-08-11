@@ -61,7 +61,7 @@ static bool parse_command_line(const int argc, char **argv, Compiler *compiler) 
         printf(VERSION);
         return EXIT_SUCCESS;
     } else if (strcmp(command, "source") == 0)
-        compiler->options.flags |= COMP_SOURCE;
+        compiler->options.flags |= COMP_SOURCE | COMP_COMPILE_ASM;
     else if (strcmp(command, "document") == 0)
         compiler->options.flags |= COMP_DOCUMENT;
     else if (strcmp(command, "ir") == 0)

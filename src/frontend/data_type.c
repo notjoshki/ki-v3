@@ -134,11 +134,13 @@ Data_Type infer_between_two_types(const Data_Type dt1, const Data_Type dt2) {
     return infer;
 }
 
-Data_Type infer_implicit_data_type(Data_Type dt) {
-    if (dt_is_float(dt))
-        return create_data_type(PRIM_F64, 0);
-    else if (dt.pointer_count > 0 || dt.array_size > 0)
+Data_Type infer_implicit_data_type(const Data_Type dt) {
+    if (dt_is_float(dt) || dt.pointer_count > 0 || dt.array_size > 0 || dt.primitive_type == PRIM_BOOL)
         return copy_data_type(&dt);
+    else if (dt.primitive_type == PRIM_I8 || dt.primitive_type == PRIM_I16)
+        return create_data_type(PRIM_I32, 0);
+    else if (dt.primitive_type == PRIM_U8 || dt.primitive_type == PRIM_U16)
+        return create_data_type(PRIM_U32, 0);
 
-    return create_data_type(PRIM_I32, 0);
+    return copy_data_type(&dt);
 }

@@ -147,6 +147,7 @@ typedef struct {
 
 typedef struct {
     Token_Type type;
+    bool was_simple_boolean;
 } AST_Operator;
 
 typedef struct {

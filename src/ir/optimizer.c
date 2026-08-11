@@ -426,20 +426,37 @@ static void optimize_constant_folding(Optimizer *optimizer) {
     // add %0, 2
     // ->
     // add %0, 3
-    if (is_math_opcode(this_inst->type) && is_math_opcode(next_inst->type) && this_inst->destination.type == OPER_REGISTER &&
-            next_inst->destination.type == OPER_REGISTER && lir_registers_equal(&this_inst->destination, &next_inst->destination) &&
+    // NOTE: It's important that we only propogate instructions where the order doesn't matter, e.g add or multiply.
+    // If we did subs or divs etc it could end up in the wrong order, like I had a problem where
+    // + and - precedences were getting ignored.
+    //if (((this_inst->type == LIR_ADD && next_inst->type == LIR_ADD) || (this_inst->type == LIR_MUL && next_inst->type == LIR_MUL)) && 
+    if (is_math_opcode(this_inst->type) && is_math_opcode(next_inst->type) &&
+            this_inst->destination.type == OPER_REGISTER && next_inst->destination.type == OPER_REGISTER && 
+            lir_registers_equal(&this_inst->destination, &next_inst->destination) &&
             (this_inst->source.type == OPER_INT || this_inst->source.type == OPER_FLOAT) &&
             (next_inst->source.type == OPER_INT || next_inst->source.type == OPER_FLOAT) &&
             dt_is_float(this_inst->destination.data_type) == dt_is_float(next_inst->destination.data_type)) {
+        /*
         const double result = calculate_constant_math(next_inst->type,
             get_lir_constant_value(&this_inst->source), get_lir_constant_value(&next_inst->source));
 
-        omit(this_inst);
+        omit(next_inst);
 
-        if (dt_is_float(next_inst->destination.data_type))
-            next_inst->source = (LIR_Operand){ .type = OPER_FLOAT, .data_type = create_data_type(PRIM_F64, 0), .float_.f64 = result };
+        if (dt_is_float(this_inst->destination.data_type))
+            this_inst->source = (LIR_Operand){ .type = OPER_FLOAT, .data_type = create_data_type(PRIM_F64, 0), .float_.f64 = result };
         else
-            next_inst->source = (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_I64, 0), .int_.i64 = (int64_t)result };
+            this_inst->source = (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_I64, 0), .int_.i64 = (int64_t)result };
+        */
+
+        const double result = calculate_constant_math(this_inst->type,
+            get_lir_constant_value(&this_inst->source), get_lir_constant_value(&next_inst->source));
+
+        omit(next_inst);
+
+        if (dt_is_float(this_inst->destination.data_type))
+            this_inst->source = (LIR_Operand){ .type = OPER_FLOAT, .data_type = create_data_type(PRIM_F64, 0), .float_.f64 = result };
+        else
+            this_inst->source = (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_I64, 0), .int_.i64 = (int64_t)result };
 
         return;
     }

@@ -308,14 +308,14 @@ static Data_Type parse_data_type(Parser *parser) {
 static AST *parse(Parser *parser);
 
 static AST *parse_math(Parser *parser, AST *first) {
+    parser->flags |= PARSER_IN_MATH;
+
     if (first == NULL)
         first = parse_value(parser);
 
     AST *ast = new_ast(AST_MATH, ast_location(first), ++parser->context->node_uid);
     ast->math.nodes = create_list(sizeof(AST *));
     push_item(&ast->math.nodes, (AST *)first);
-
-    parser->flags |= PARSER_IN_MATH;
 
     while (is_math_operator(parser)) {
         AST *oper = new_ast(AST_OPERATOR, new_ast_arguments);
@@ -329,7 +329,30 @@ static AST *parse_math(Parser *parser, AST *first) {
     return ast;
 }
 
+static bool push_simple_boolean_comparison_if_present(Parser *parser, AST *condition) {
+    // If the count is 1 then we know this is a boolean expression, just index at 0 to avoid invalid read.
+    AST *last_oper = (AST *)condition->condition.nodes.items[condition->condition.nodes.count == 1 ? 0 : 
+        condition->condition.nodes.count - 2];
+
+    if (condition->condition.nodes.count == 1 || last_oper->operator.was_simple_boolean) {
+        // Boolean true comparison without '== true'
+        AST *oper = new_ast(AST_OPERATOR, new_ast_arguments);
+        oper->operator.type = TOK_EQ;
+        oper->operator.was_simple_boolean = true;
+        push_item(&condition->condition.nodes, oper);
+
+        AST *value = new_ast(AST_BOOL, new_ast_arguments);
+        value->bool_value = true;
+        push_item(&condition->condition.nodes, value);
+        return true;
+    }
+
+    return false;
+}
+
 static AST *parse_condition(Parser *parser, AST *first) {
+    parser->flags |= PARSER_IN_CONDITION;
+
     if (first == NULL)
         first = parse_value(parser);
 
@@ -337,28 +360,41 @@ static AST *parse_condition(Parser *parser, AST *first) {
     ast->condition.nodes = create_list(sizeof(AST *));
     push_item(&ast->condition.nodes, (AST *)first);
 
-    parser->flags |= PARSER_IN_CONDITION;
+    // 0 1  2 3  4 5  6
+    // x == 1 || x == 2
 
     while (is_condition_operator(parser)) {
-        if ((this_token->type == TOK_BOOL_AND || this_token->type == TOK_BOOL_OR) &&
-                ast->condition.nodes.count % 2 != 0) {
-            // Boolean true or false without == or !=
-            AST *oper = new_ast(AST_OPERATOR, new_ast_arguments);
-            oper->operator.type = TOK_EQ;
-            push_item(&ast->condition.nodes, oper);
+        bool was_simple_boolean = false;
 
-            AST *value = new_ast(AST_BOOL, new_ast_arguments);
-            value->bool_value = true;
-            push_item(&ast->condition.nodes, value);
+        if (this_token->type == TOK_BOOL_AND || this_token->type == TOK_BOOL_OR) {
+            was_simple_boolean = push_simple_boolean_comparison_if_present(parser, ast);
+            /*
+            AST *last_oper = (AST *)ast->condition.nodes.items[ast->condition.nodes.count == 1 ? 0 : ast->condition.nodes.count - 2];
+
+            if (ast->condition.nodes.count == 1 || last_oper->operator.was_simple_boolean) {
+                // Boolean true or false without == or !=
+                AST *oper = new_ast(AST_OPERATOR, new_ast_arguments);
+                oper->operator.type = TOK_EQ;
+                oper->operator.was_simple_boolean = true;
+                push_item(&ast->condition.nodes, oper);
+
+                AST *value = new_ast(AST_BOOL, new_ast_arguments);
+                value->bool_value = true;
+                push_item(&ast->condition.nodes, value);
+                was_simple_boolean = true;
+            }
+            */
         }
 
         AST *oper = new_ast(AST_OPERATOR, new_ast_arguments);
         oper->operator.type = this_token->type;
+        oper->operator.was_simple_boolean = was_simple_boolean;
         push_item(&ast->condition.nodes, (AST *)oper);
         step(parser);
         push_item(&ast->condition.nodes, parse_value(parser));
     }
 
+    push_simple_boolean_comparison_if_present(parser, ast);
     parser->flags &= ~PARSER_IN_CONDITION;
     return ast;
 }
@@ -518,7 +554,7 @@ static AST *parse_asm(Parser *parser) {
 static AST *parse_if(Parser *parser) {
     AST *ast = new_ast(AST_IF, new_ast_arguments);
     step(parser);
-    ast->if_.condition = parse_value(parser);
+    ast->if_.condition = parse_condition(parser, NULL);
 
     const size_t uid_before = parser->current_scope.scope_uid;
     const size_t level_before = parser->current_scope.level++;
@@ -538,7 +574,7 @@ static AST *parse_if(Parser *parser) {
     return ast;
 }
 
-static AST *parse_while(Parser *parser, bool do_first) {
+static AST *parse_while(Parser *parser, const bool do_first) {
     AST *ast = new_ast(AST_WHILE, new_ast_arguments);
     step(parser);
     ast->while_.do_first = do_first;
@@ -556,10 +592,10 @@ static AST *parse_while(Parser *parser, bool do_first) {
             ast->while_.condition = err;
         } else {
             step(parser);
-            ast->while_.condition = parse_value(parser);
+            ast->while_.condition = parse_condition(parser, NULL);
         }
     } else {
-        ast->while_.condition = parse_value(parser);
+        ast->while_.condition = parse_condition(parser, NULL);
         ast->while_.body = parse_body(parser, true);
     }
 
@@ -835,7 +871,7 @@ static AST *parse_custom_type(Parser *parser, const bool is_enum, AST *group) {
         char *member_name = copy_string(this_token->value, this_token->length);
         size_t member_length = this_token->length;
         eat(parser, TOK_IDENTIFIER);
-        Data_Type data_type;
+        Data_Type data_type = create_data_type(PRIM_VOID, 0);
         AST *default_value = NULL;
 
         if (this_token->type == TOK_COLON) {
@@ -963,7 +999,7 @@ static AST *parse_for_function_or_call(Parser *parser) {
 
     step(parser);
 
-    const bool is_func = this_token->type == TOK_COLON || this_token->type == TOK_LBRACE;
+    const bool is_func = !(parser->flags & PARSER_IN_VALUE) && (this_token->type == TOK_COLON || this_token->type == TOK_LBRACE);
 
     parser->index = begin;
     parser->current_token = &parser->tokens[parser->index];

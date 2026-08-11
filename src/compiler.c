@@ -285,6 +285,7 @@ static bool compile_only_main_to_markdown(Compiler *compiler, Context *context) 
         resolve_ast(context, root);
 
     if (get_error_count() > 0) {
+        free(name);
         cleanup(context, NULL, NULL, 0, true);
         return false;
     }

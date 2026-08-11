@@ -72,6 +72,11 @@ static size_t ast_to_group_uid(Documentor *documentor, AST *ast) {
         case AST_CUSTOM_TYPE: {
             Custom_Type *type = find_custom_type(documentor->context, CUST_STRUCT, 
                 ast->custom_type.name, ast->custom_type.name_length, ast->module_uid);
+
+            if (type == NULL)
+                type = find_custom_type(documentor->context, CUST_ENUM, 
+                    ast->custom_type.name, ast->custom_type.name_length, ast->module_uid);
+
             assert(type != NULL);
             return type->group_uid;
         }
@@ -111,6 +116,11 @@ static void document_elements(Documentor *documentor, AST *root, const bool expo
             case AST_CUSTOM_TYPE: {
                 Custom_Type *type = find_custom_type(documentor->context, CUST_STRUCT, 
                     node->custom_type.name, node->custom_type.name_length, node->module_uid);
+
+                if (type == NULL)
+                    type = find_custom_type(documentor->context, CUST_ENUM, 
+                        node->custom_type.name, node->custom_type.name_length, node->module_uid);
+
                 assert(type != NULL);
 
                 if (type->exported || !exported_symbols_only)
@@ -149,7 +159,6 @@ static void document_elements(Documentor *documentor, AST *root, const bool expo
     delete_list(&leading_comments);
 }
 
-/*
 static char *constant_value_to_string(AST *ast) {
     char *str = malloc(24);
 
@@ -170,7 +179,6 @@ static char *constant_value_to_string(AST *ast) {
 
     return str;
 }
-*/
 
 static char *comments_to_string(List *comments) {
     char *str = calloc(1, sizeof(char));
@@ -202,7 +210,38 @@ static char *comments_to_string(List *comments) {
     return str;
 }
 
-static char *function_parameters_to_string(List *parameters) {
+static char *default_value_to_string(Context *context, AST *value) {
+    switch (value->type) {
+        case AST_INT:
+        case AST_FLOAT: return constant_value_to_string(value);
+        case AST_BOOL: return copy_whole_string(value->bool_value ? "true" : "false");
+        case AST_NULL: return copy_whole_string("null");
+        case AST_CONSTANT: return copy_string(value->constant.name, value->constant.name_length);
+        case AST_CUSTOM_TYPE: { // SHOULD be an enum.
+            Custom_Type *type = find_custom_type(context, CUST_ENUM, value->custom_type.name, value->custom_type.name_length, value->module_uid);
+            assert(type != NULL);
+            return copy_string(type->name, type->name_length);
+        }
+        case AST_ACCESS: {// This should ONLY be an enum.
+            assert(value->access.lhs->type == AST_ENUM_NAME);
+            assert(value->access.rhs->type == AST_MEMBER);
+
+            Custom_Type *type = get_custom_type(context, value->access.rhs->member.custom_type_symbol_uid);
+            assert(type != NULL);
+            Custom_Type_Member *member = get_custom_type_member(context, type->uid, value->access.rhs->member.member_symbol_uid);
+            assert(member != NULL);
+
+            char *str = malloc(type->name_length + member->name_length + 2);
+            sprintf(str, "%.*s.%.*s", (int)type->name_length, type->name, (int)member->name_length, member->name);
+            return str;
+        } default:
+            printf(">>>%s\n", ast_type_to_string(value->type));
+            assert(false);
+            return copy_whole_string("(none)");
+    }
+}
+
+static char *function_parameters_to_string(Context *context, List *parameters) {
     char *str = calloc(1, sizeof(char));
     size_t len = 0;
 
@@ -211,13 +250,24 @@ static char *function_parameters_to_string(List *parameters) {
         char *type = data_type_to_string(&param->parameter.data_type);
         const size_t type_len = strlen(type);
 
-        str = realloc(str, len + type_len + param->parameter.name_length + 50);
+        str = realloc(str, len + type_len + param->parameter.name_length + 5);
         strcat(str, param->parameter.name);
         strcat(str, ": ");
         strcat(str, type);
         free(type);
 
-        len += type_len + param->parameter.name_length + 1;
+        len += type_len + param->parameter.name_length + 2;
+
+        if (param->parameter.default_value != NULL) {
+            char *value = default_value_to_string(context, param->parameter.default_value);
+            const size_t value_len = strlen(value);
+
+            str = realloc(str, len + value_len + 6);
+            strcat(str, " = ");
+            strcat(str, value);
+            free(value);
+            len += value_len + 3;
+        }
 
         if (i + 1 < parameters->count) {
             strcat(str, ", ");
@@ -228,10 +278,10 @@ static char *function_parameters_to_string(List *parameters) {
     return str;
 }
 
-static char *function_element_to_string(Element *element) {
+static char *function_element_to_string(Context *context, Element *element) {
     char *comments =  comments_to_string(&element->comments);
     AST *def = element->definition;
-    char *params = function_parameters_to_string(&def->function.parameters);
+    char *params = function_parameters_to_string(context, &def->function.parameters);
     char *type = data_type_to_string(&def->function.data_type);
 
     char *str = malloc((def->function.name_length * 2) + strlen(type) + strlen(params) + strlen(comments) + 64);
@@ -341,7 +391,7 @@ static char *alias_element_to_string(Documentor *documentor, Element *element) {
 
 static char *element_to_markdown(Documentor *documentor, Element *element) {
     switch (element->type) {
-        case ELEM_FUNCTION: return function_element_to_string(element);
+        case ELEM_FUNCTION: return function_element_to_string(documentor->context, element);
         case ELEM_STRUCT: return struct_element_to_string(documentor, element);
         case ELEM_ENUM: return enum_element_to_string(documentor, element);
         case ELEM_ALIAS: return alias_element_to_string(documentor, element);

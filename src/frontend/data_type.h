@@ -70,8 +70,8 @@ static inline bool data_types_equal(const Data_Type dt1, const Data_Type dt2) {
 
 static inline Data_Type create_data_type(Primitive_Type primitive_type, size_t pointer_count) {
     return (Data_Type){ .primitive_type = primitive_type, .pointer_count = pointer_count, 
-        .array_size = 0, .unresolved_array_size = NULL,
-        .custom_length = 0, .module_length = 0, .module_name = NULL, .module_uid = -1 };
+        .array_size = 0, .unresolved_array_size = NULL, .custom_name = NULL, .custom_length = 0, 
+        .module_length = 0, .module_name = NULL, .module_uid = -1 };
 }
 
 void delete_data_type(Data_Type *dt);
