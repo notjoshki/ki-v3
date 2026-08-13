@@ -95,3 +95,7 @@ void log_source(const Error_Type type, const char *path, const size_t ln, size_t
 
     fprintf(stderr, ESC_BOLD "%s^\n" ESC_NORMAL, error_type_to_color(type));
 }
+
+void increment_error_count() {
+    error_count++;
+}

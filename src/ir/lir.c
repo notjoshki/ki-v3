@@ -295,7 +295,7 @@ static LIR_Opcode condition_operator_to_opcode(const Token_Type operator) {
     }
 }
 
-static LIR_Operand hir_condition_to_lir_operand(LIR *lir, HIR_Data *hir) {
+static LIR_Operand hir_condition_to_lir_operand(LIR *lir, HIR_Data *hir, const bool as_value) {
     HIR_Data *data = hir->expression.data;
     const size_t count = hir->expression.count;
     Data_Type bool_dt = create_data_type(PRIM_BOOL, 0);
@@ -307,6 +307,11 @@ static LIR_Operand hir_condition_to_lir_operand(LIR *lir, HIR_Data *hir) {
         push_load(lir, t1(bool_dt), (LIR_Operand){ .type = OPER_INT, .data_type = bool_dt, .int_.u8 = 0 });
         push_instruction(lir, LIR_PUSH, nop, t1(bool_dt));
     }
+
+    LIR_Operand false_label = nop;
+    
+    if (as_value)
+        false_label = lir_label(lir->label_count++);
 
     for (size_t i = 1; i < count; i += 4) {
         HIR_Data *lhs = &data[i - 1];
@@ -340,15 +345,26 @@ static LIR_Operand hir_condition_to_lir_operand(LIR *lir, HIR_Data *hir) {
 
         if (next_chain == TOK_BOOL_OR)
             push_instruction(lir, LIR_JMP_TRUE, true_label, t1(bool_dt));
+        else {
+            assert(false_label.type == OPER_LABEL);
+            push_instruction(lir, LIR_JMP_FALSE, false_label, t1(bool_dt));
+        }
 
         push_instruction(lir, LIR_PUSH, nop, t1(bool_dt));
     }
 
-    if (count > 3) {
-        push_instruction(lir, LIR_POP, t1(bool_dt), nop);
-        push_instruction(lir, LIR_NEW_LABEL, nop, true_label);
-    }
+    // If it's not a value then we assume we explicitly handle the else/done labels somewhere else e.g if statement, loop.
+    if (count == 3 || !as_value)
+        return t1(bool_dt);
 
+    LIR_Operand done_label = lir_label(lir->label_count++);
+
+    push_instruction(lir, LIR_POP, t1(bool_dt), nop);
+    push_instruction(lir, LIR_NEW_LABEL, nop, true_label);
+    push_instruction(lir, LIR_JMP, done_label, nop);
+    push_instruction(lir, LIR_NEW_LABEL, nop, false_label);
+    push_load(lir, t1(bool_dt), (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_I32, 0), .int_.i32 = 0 });
+    push_instruction(lir, LIR_NEW_LABEL, nop, done_label);
     return t1(bool_dt);
 }
 
@@ -511,7 +527,7 @@ static LIR_Operand hir_data_to_operand(LIR *lir, HIR_Data *data) {
         case DATA_CALL:
             push_call(lir, &data->call);
             return lir_register(data->call.data_type, T1_REGISTER_NUMBER, false);
-        case DATA_CONDITION: return hir_condition_to_lir_operand(lir, data);
+        case DATA_CONDITION: return hir_condition_to_lir_operand(lir, data, true);
         case DATA_REFERENCE: return hir_reference_to_lir_operand(lir, data);
         case DATA_INDEX: return hir_index_to_lir_operand(lir, data);
         case DATA_UNARY: return hir_unary_to_operand(lir, data);

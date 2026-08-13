@@ -440,10 +440,16 @@ static void resolve_access(Context *context, AST *ast) {
     Data_Type lhs_type = get_ast_data_type(context, lhs);
 
     if (lhs_type.primitive_type != PRIM_CUSTOM) {
-        char *str = data_type_to_string(&lhs_type);
-        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
-            "Accessing non-struct data type of type '%s'\n", str);
-        free(str);
+        // INFER is always a result of a datatype error on the user side so we don't wanna log this error.
+        if (lhs_type.primitive_type == PRIM_INFER)
+            increment_error_count();
+        else {
+            char *str = data_type_to_string(&lhs_type);
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Accessing non-struct data type of type '%s'\n", str);
+            free(str);
+        }
+
         return;
     }
 

@@ -1,6 +1,6 @@
 # Ki v3
 
-Ki is a low-level programming language written from scratch. It's completely independant from [libc](https://en.wikipedia.org/wiki/C_standard_library) and [llvm](https://en.wikipedia.org/wiki/LLVM); using a custom backend and its own self-hosted libraries. It aims to be a fun, non-production improvement on C.
+Ki is a low-level programming language written from scratch. It's completely independant from [libc](https://en.wikipedia.org/wiki/C_standard_library) by using its own self-hosted libraries and [llvm](https://en.wikipedia.org/wiki/LLVM) by using a custom backend. It aims to be a fun, non-production improvement on C.
 
 > [!WARNING]
 > Ki is still in early development, expect breaking bugs and missing features.
@@ -12,15 +12,14 @@ Ki is a low-level programming language written from scratch. It's completely ind
 - Inferred types
 - Decorators
 - Builtin strings
-- Builtin documentation generator
-- Automatic pointer dereferencing
+- Builtin markdown generator
 
 ## Installation
 
 ```console
 $ git clone https://github.com/notjoshki/ki-v3.git
 $ cd ki-v3
-$ make install
+$ sudo make install
 ```
 
 ## Examples
@@ -28,8 +27,6 @@ $ make install
 Hello world:
 
 ```cs
-using ki.basic;
-
 main() {
     print("Hello, world!\n");
 }
@@ -38,8 +35,6 @@ main() {
 Print the alphabet in ascending order:
 
 ```cs
-using ki.basic;
-
 main() {
     for character := 'A'..='Z' {
         print_char(character);
@@ -52,8 +47,6 @@ main() {
 Greet the user:
 
 ```cs
-using ki.basic;
-
 BUFFER_CAPACITY: const 32;
 
 main() {

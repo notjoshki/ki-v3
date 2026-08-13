@@ -42,6 +42,36 @@ println(str: &string) {
     system.write(system.STDOUT, &c, 1);
 }
 
+// Format a string and print it.
+#io
+print_format(format: &string, s1: &string = null, s2: &string = null, s3: &string = null, s4: &string = null) {
+    total_len := format.length;
+
+    if s1 != null {
+        total_len += s1.length;
+    } else {
+        print(format);
+        return;
+    }
+
+    if s2 != null {
+        total_len += s2.length;
+    }
+
+    if s3 != null {
+        total_len += s3.length;
+    }
+
+    if s4 != null {
+        total_len += s4.length;
+    }
+
+    str := new_string(total_len);
+    format_string(str, format, s1, s2, s3, s4);
+    print(str);
+    delete_string(str);
+}
+
 // Receive a line of input from standard input.
 #io
 scan(buffer: &char, capacity: usize, strip_newline: bool = true) {
@@ -51,7 +81,7 @@ scan(buffer: &char, capacity: usize, strip_newline: bool = true) {
         return;
     }
 
-    if strip_newline {
+    if strip_newline && chars_read > 0 {
         buffer[chars_read - 1] = '\0';
     }
 
@@ -111,11 +141,27 @@ delete_string(str: &string) {
     free(str);
 }
 
-// Allocate a new string and copy the data from a string into it.
+// Allocate a new string and copy the characters from another string into it.
 #strings
 copy_string(str: &string): &string {
     new: &string = new_string(str.capacity);
     assign_string(new, str);
+    return new;
+}
+
+// Allocate a new string and copy the characters from a range within another string into it.
+#strings
+copy_string_slice(str: &string, start: usize, end: usize): &string {
+    if start >= str.length || end < start {
+        return new_string(0);
+    }
+
+    diff := end - start;
+    new: &string = new_string(diff);
+    copy_bytes(new.data, cast(&char str.data + start), diff);
+
+    new.length = diff;
+    new.data[diff] = '\0';
     return new;
 }
 
@@ -160,6 +206,15 @@ assign_string(destination: &string, source: &string) {
     destination.length = source.length;
 }
 
+// Assign each character from a buffer into a string, expands if needed.
+#strings
+assign_string_from_buffer(str: &string, buffer: &char, count: usize) {
+    reserve_string(str, count);
+    copy_bytes(str.data, buffer, count);
+    str.length = count;
+    str.data[count] = '\0';
+}
+
 // Append one string onto another.
 #strings
 append_string(destination: &string, source: &string) {
@@ -175,6 +230,21 @@ append_string(destination: &string, source: &string) {
 
     destination.data[j] = '\0';
     destination.length = new_length;
+}
+
+// Append a range of characters from one string onto another.
+#strings
+append_string_slice(destination: &string, source: &string, start: usize, end: usize) {
+    if source.length == 0 || start > destination.length || start > end {
+        return;
+    }
+
+    diff := end - start;
+    new_len := destination.length + diff;
+    reserve_string(destination, new_len);
+    copy_bytes(cast(&char destination.data + destination.length), cast(&char source.data + start), diff);
+    destination.length = new_len;
+    destination.data[new_len] = '\0';
 }
 
 // Push a character into a string, at a given index or onto the end.
@@ -222,6 +292,116 @@ pop_string_char(str: &string, index: isize = -1): char {
     str.data[str.length] = '\0';
     return popped;
 }
+
+// Insert a string into another string at an index.
+#strings
+insert_string(destination: &string, source: &string, index: usize, remove_index_char: bool = false) {
+    dst_len := destination.length;
+
+    if index > dst_len {
+        return;
+    }
+
+    src_len := source.length;
+
+    if src_len == 0 {
+        return;
+    }
+
+    total_len := dst_len + src_len;
+    reserve_string(destination, total_len);
+
+    slice: &string;
+
+    if remove_index_char {
+        slice = copy_string_slice(destination, index + 1, dst_len);
+    } else {
+        slice = copy_string_slice(destination, index, dst_len);
+    }
+
+    destination.length -= dst_len - index;
+
+    for i := 0..src_len {
+        destination.data[index + i] = source.data[i];
+    }
+
+    destination.length += src_len;
+    append_string(destination, slice);
+    delete_string(slice);
+    destination.length = total_len;
+    destination.data[total_len] = '\0';
+}
+
+// Assuming the destination string already has enough memory allocated, replaces each '%' character with the given string arguments according to the format string. Use '/%' together to insert a single percent sign and not a replacement specifier.
+#strings
+format_string(destination: &string, format: &string, s1: &string, s2: &string, s3: &string, s4: &string) {
+    assign_string(destination, format);
+    format_len := format.length;
+
+    if format_len == 0 || s1 == null {
+        return;
+    }
+
+    arg_count := 1;
+
+    if s2 != null {
+        arg_count += 1;
+
+        if s3 != null {
+            arg_count += 1;
+
+            if s4 != null {
+                arg_count += 1;
+            }
+        }
+    }
+
+    specifier_count := 0;
+
+    for i := 0..format_len {
+        if format.data[i] != '%' {
+            continue;
+        }
+
+        if i > 0 && format.data[i - 1] == '/' {
+            continue;
+        }
+
+        specifier_count += 1;
+    }
+
+    replacement: &string;
+    args_replaced := 0;
+
+    for i := 0..destination.length {
+        if args_replaced == arg_count || args_replaced == specifier_count {
+            break;
+        }
+
+        if destination.data[i] != '%' {
+            continue;
+        }
+
+        if i > 0 && destination.data[i - 1] == '/' {
+            continue;
+        }
+
+        if args_replaced == 0 {
+            replacement = s1;
+        } else if args_replaced == 1 {
+            replacement = s2;
+        } else if args_replaced == 2 {
+            replacement = s3;
+        } else {
+            replacement = s4;
+        }
+
+        insert_string(destination, replacement, i, true);
+        i += replacement.length;
+        args_replaced += 1;
+    }
+}
+
 
 // Find the first occurence of a character in a string. May return -1 on failure.
 #strings
@@ -338,12 +518,8 @@ reverse_string(str: &string) {
 #strings
 buffer_to_string(buffer: &char): &string {
     len := buffer_length(buffer);
-    str: &string = alloc(len + 1);
-    copy_bytes(str.data, buffer, len);
-
-    str.data[len] = '\0';
-    str.length = len;
-    str.capacity = len;
+    str: &string = new_string(len + 1);
+    assign_string_from_buffer(str, buffer, len);
     return str;
 }
 
@@ -726,7 +902,7 @@ free(pointer: &void) {
 #memory
 realloc(old_pointer: &void, new_size: usize): &void {
     new_ptr := alloc(new_size);
-    old_size := get_ki_heap_free_list()[0];
+    old_size := get_ki_heap_free_list()[cast(usize old_pointer - get_ki_heap())];
     copy_bytes(new_ptr, old_pointer, old_size);
     free(old_pointer);
     return new_ptr;

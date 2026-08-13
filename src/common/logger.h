@@ -33,5 +33,6 @@ typedef enum {
 void log_location(const Error_Type type, const char *path, const size_t ln, const size_t col);
 void log_source(const Error_Type type, const char *path, const size_t ln, size_t col);
 size_t get_error_count();
+void increment_error_count();
 
 #endif

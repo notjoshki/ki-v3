@@ -325,7 +325,10 @@ static char *emit_load_8bit_destination(State *state, LIR_Operand *dst, LIR_Oper
             sprintf(code, "movzx %s, %s\n", dst_reg_str, src_str);
         else {
             // Can't movzx a 32 bit source operand.
-            code[0] = '\0';
+            //code[0] = '\0';
+            free(dst_reg_str);
+            dst_reg_str = register_operand_to_string(state, dst, src_type);
+            sprintf(code, "mov %s, %s\n", dst_reg_str, src_str);
         }
     } else
         sprintf(code, "mov %s, %s\n", dst_reg_str, src_str);
@@ -596,15 +599,15 @@ static char *emit_store(State *state, LIR_Instruction *inst) {
             free(reg);
             reg = register_operand_to_string(state, src, src_type);
 
-            sprintf(code, "mov %s, %s ;grrr\n", dst_reg, reg);
+            sprintf(code, "mov %s, %s\n", dst_reg, reg);
             free(dst_reg);
         } else if (!dst_is_register && dst_is_lower_bit_size) {
             free(reg);
             src->data_type = dst->data_type;
             reg = register_operand_to_string(state, src, type);
-            sprintf(code, "mov %s, %s ;bruh\n", dst_str, reg);
+            sprintf(code, "mov %s, %s\n", dst_str, reg);
         } else
-            sprintf(code, "mov %s, %s ;whaa\n", dst_str, reg);
+            sprintf(code, "mov %s, %s\n", dst_str, reg);
 
         free(reg);
     } else
