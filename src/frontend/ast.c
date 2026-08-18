@@ -243,6 +243,7 @@ char *ast_type_to_string(const AST_Type type) {
         case AST_NULL: return "null";
         case AST_BOOL: return "boolean";
         case AST_STRUCT_INITIALIZER: return "struct initializer";
+        case AST_STRUCT_NAME: return "struct";
         default:
             assert(false);
             return "<none>";
