@@ -33,6 +33,7 @@ struct Module {
     AST *root;
     List imported_identifiers;
     List imported_groups;
+    bool builtin;
     bool using_all_symbols; // TOFIX: Eww ugly. See resolve_import().
 };
 
@@ -142,6 +143,7 @@ struct Context {
     size_t module_capacity;
     Scope scope_stack[SCOPE_STACK_CAPACITY];
     size_t scope_stack_count;
+    bool freestanding;
     size_t warning_flags;
     char *entrypoint_function;
     size_t entrypoint_function_length;
@@ -188,7 +190,7 @@ static inline Alias_Symbol alias_symbol_module(size_t module_uid) {
     return (Alias_Symbol){ .kind = ALIAS_MODULE, .module_uid = module_uid };
 }
 
-Context create_context(char *entrypoint_function);
+Context create_context(char *entrypoint_function, bool freestanding);
 void delete_context(Context *context, const bool free_modules);
 
 Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, size_t group_uid);

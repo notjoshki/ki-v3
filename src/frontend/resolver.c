@@ -1012,7 +1012,7 @@ static void resolve_import(Context *context, AST *ast) {
         check = fopen(correct_path, "r");
     }
 
-    // Not a builtin lib.
+    // Not a specified 'with ki.' builtin lib.
     if (check == NULL) {
         if (correct_path != NULL)
             free(correct_path);
@@ -1061,6 +1061,10 @@ static void resolve_import(Context *context, AST *ast) {
 
         Module *root_module = get_module(context, root->module_uid);
         root_module->root = root;
+
+        root_module->builtin = context->freestanding ? false : 
+            correct_path_len > 0 && correct_path[0] == '/' && strstr(correct_path, KI_LIB_DIRECTORY) != NULL;
+
         root_module->using_all_symbols = ast->import.use_all_symbols; // TOFIX: I really don't like this. It's ugly.
         module = root_module;
     } else if (module_is_imported(context, module->uid)) {

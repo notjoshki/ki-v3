@@ -43,7 +43,11 @@ clean:
 install:
 	make
 	mkdir -p $(KI_DIR)
+	cp ./$(EXEC) /usr/local/bin/
 	cp -r ./lib $(KI_DIR)/
+	$(EXEC) object -freestanding $(KI_DIR)/lib/basic.ki
+	ar rcs $(KI_DIR)/libki.a basic.o system.o
+	rm basic.o system.o
 
 uninstall:
 	make clean

@@ -84,3 +84,10 @@ mprotect(start: &void, size: usize, protection: i32): i32 {
 munmap(address: &void, size: usize): i32 {
     asm("mov rax, 11\nsyscall");
 }
+
+#syscalls
+@onetime_arguments
+@omit_frame_pointer
+exit(code: i32) {
+    asm("mov rax, 60\nsyscall");
+}

@@ -15,7 +15,7 @@
 #define CONSTANT_CAPACITY 4
 #define MODULE_CAPACITY 50
 
-Context create_context(char *entrypoint_function) {
+Context create_context(char *entrypoint_function, bool freestanding) {
     return (Context){ .node_uid = 0, 
         .custom_types = malloc(CUSTOM_TYPE_CAPACITY * sizeof(Custom_Type)),
         .custom_type_count = 0, .custom_type_capacity = CUSTOM_TYPE_CAPACITY, 
@@ -28,7 +28,8 @@ Context create_context(char *entrypoint_function) {
         .symbols = malloc(SYMBOL_CAPACITY * sizeof(Symbol)),
         .symbol_count = 0, .symbol_capacity = SYMBOL_CAPACITY,
         .modules = malloc(MODULE_CAPACITY * sizeof(Module)),
-        .module_count = 0, .module_capacity = MODULE_CAPACITY, .scope_stack_count = 0 };
+        .module_count = 0, .module_capacity = MODULE_CAPACITY, .scope_stack_count = 0,
+        .freestanding = freestanding };
 }
 
 static void delete_custom_type(Custom_Type *type) {
@@ -357,7 +358,7 @@ Module *new_module(Context *context, const char *name, const size_t name_length,
     context->modules[context->module_count] = (Module){ .uid = context->module_count, 
         .name = copy_string(name, name_length), .name_length = name_length,
         .path = copy_string(path, path_length), .path_length = path_length, 
-        .directory = copy_string(directory, directory_length), .directory_length = directory_length,
+        .directory = copy_string(directory, directory_length), .directory_length = directory_length, .builtin = false,
         .imported_identifiers = create_list(sizeof(AST *)), .imported_groups = create_list(sizeof(AST *)), .using_all_symbols = false, };
 
     return &context->modules[context->module_count++];

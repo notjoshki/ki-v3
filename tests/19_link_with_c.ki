@@ -1,0 +1,16 @@
+// It's important to note that as of now, Ki produces NON position-independent executables.
+// When compiling the C file, you will need to specify -no-pie.
+// When linking the final executable using gcc, specify the following flags:
+// -znoexecstack -nostartfiles -no-pie
+
+// For example, to try this example, run the following commands:
+// $ ./ki object -o ki_link.o tests/19_link_with_c.ki
+// $ gcc -no-pie -c tests/19_link_with_c.c
+// $ gcc -znoexecstack -nostartfiles -no-pie -o link_test 19_link_with_c.o ki_link.o basic.o system.o
+// $ ./link_test
+@extern
+greet(name: &char): void;
+
+main() {
+    greet("Josh".data);
+}

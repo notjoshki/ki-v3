@@ -2,11 +2,14 @@
 // https://github.com/notjoshki/ki-v3
 
 import system;
-export #io, #memory, #strings;
+export #io, #memory, #strings, #debugging;
 
 // 17 pages of 4KiB = 65 Kib, 16 pages for data and 1 for the guard page.
 HEAP_SIZE: const 65536;
 GUARD_PAGE_SIZE: const 4096;
+
+EXIT_SUCCESS: const 0;
+EXIT_FAILURE: const 1;
 
 INT_BUFFER_CAPACITY: const 33;
 STRING_CAPACITY: const 16;
@@ -906,4 +909,22 @@ realloc(old_pointer: &void, new_size: usize): &void {
     copy_bytes(new_ptr, old_pointer, old_size);
     free(old_pointer);
     return new_ptr;
+}
+
+// Exit the program.
+#debugging
+exit(code: i32 = 0) {
+    __internal_free_heap();
+    system.exit(code);
+}
+
+// If the provided condition equates to false, print the error message and exit the program.
+#debugging
+assert(condition: bool, error_message: &string) {
+    if condition {
+        return;
+    }
+
+    print(error_message);
+    exit(EXIT_FAILURE);
 }
