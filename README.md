@@ -47,16 +47,10 @@ main() {
 Greet the user:
 
 ```cs
-BUFFER_CAPACITY: const 32;
-
 main() {
-    print("What is your name? ");
-
-    buffer: char[BUFFER_CAPACITY];
-    scan(buffer, BUFFER_CAPACITY - 1);
-
-    print("Hello, ");
-    println(buffer_to_string(buffer));
+    name := input("What is your name? ");
+    print_format("Hello, %\n", name);
+    delete_string(name);
 }
 ```
 

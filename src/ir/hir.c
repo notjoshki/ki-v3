@@ -222,6 +222,11 @@ static size_t get_constant_array_size(Context *context, const Data_Type *data_ty
 static Data_Type ast_data_type_to_hir_data_type(Context *context, Data_Type *data_type, AST *infer_value, const size_t module_uid) {
     if (data_type->primitive_type == PRIM_INFER) {
         assert(infer_value != NULL);
+        if (infer_value == NULL) {
+            // Only happens on error.
+            return create_data_type(PRIM_VOID, 0);
+        }
+
         return infer_implicit_data_type(get_ast_data_type(context, infer_value));
     }
 

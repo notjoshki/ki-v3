@@ -75,20 +75,35 @@ print_format(format: &string, s1: &string = null, s2: &string = null, s3: &strin
     delete_string(str);
 }
 
-// Receive a line of input from standard input.
+// Receive a line of input from standard input. Returns the number of characters read.
 #io
-scan(buffer: &char, capacity: usize, strip_newline: bool = true) {
+scan(buffer: &char, capacity: usize, strip_newline: bool = true): usize {
     chars_read := system.read(system.STDIN, buffer, capacity);
 
     if chars_read < 0 {
-        return;
+        return 0;
     }
 
     if strip_newline && chars_read > 0 {
         buffer[chars_read - 1] = '\0';
+        buffer[chars_read] = '\0';
+        return chars_read - 1;
     }
 
     buffer[chars_read] = '\0';
+    return chars_read;
+}
+
+// Receive a line of input from standard input without using a buffer, return a new string.
+#io
+input(message: &string = null, capacity: usize = 255, strip_newline: bool = true): &string {
+    if message != null {
+        print(message);
+    }
+
+    str := new_string(capacity);
+    str.length = scan(str.data, capacity, strip_newline);
+    return str;
 }
 
 // Copy a number of bytes from one pointer to another.
