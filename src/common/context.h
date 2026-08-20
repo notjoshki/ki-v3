@@ -6,14 +6,16 @@ typedef struct Context Context;
 #include "source.h"
 #include "data_type.h"
 #include "list.h"
-#include "scope.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define FIND_IN_ANY_MODULE NULL
 
 #define SYMBOL_CAPACITY 8
+
+#define SCOPE_STACK_CAPACITY 50
 
 #define FIND_IN_ANY_SCOPE NULL
 #define NO_SECTION 0
@@ -113,6 +115,13 @@ typedef struct {
     bool exported;
 } Constant;
 
+typedef struct {
+    size_t function_uid;
+    size_t scope_uid;
+    size_t ooak_uid; // one-of-a-kind UID.
+    size_t index_in_file;
+} Scope;
+
 struct Context {
     size_t node_uid;
     Custom_Type *custom_types;
@@ -131,6 +140,8 @@ struct Context {
     Module *modules;
     size_t module_count;
     size_t module_capacity;
+    Scope scope_stack[SCOPE_STACK_CAPACITY];
+    size_t scope_stack_count;
     size_t warning_flags;
     char *entrypoint_function;
     size_t entrypoint_function_length;
@@ -160,6 +171,10 @@ struct Symbol {
     size_t flags;
     size_t group_uid;
 };
+
+static inline Scope create_scope(size_t function_uid, size_t scope_uid, size_t ooak_uid, size_t index_in_file) {
+    return (Scope){ .function_uid = function_uid, .scope_uid = scope_uid, .ooak_uid = ooak_uid, .index_in_file = index_in_file };
+}
 
 static inline Alias_Symbol alias_symbol_data(Symbol *symbol) {
     return (Alias_Symbol){ .kind = ALIAS_DATA, .data = symbol };
@@ -226,5 +241,18 @@ Symbol *find_symbol(Context *context, const Symbol_Type type, const char *name, 
 Symbol *get_function_symbol_by_index_in_module(Context *context, const size_t index, const size_t module_uid, int *out_index);
 
 Symbol *get_symbol(Context *context, const size_t uid);
+
+void push_scope(Context *context, Scope *scope);
+
+static inline void pop_scope(Context *context) {
+    assert(context->scope_stack_count > 0);
+    context->scope_stack_count--;
+}
+
+bool is_in_scope(Context *context, const Scope *scope);
+
+static inline void reset_scope_stack(Context *context) {
+    context->scope_stack_count = 0;
+}
 
 #endif

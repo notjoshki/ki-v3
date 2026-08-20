@@ -4,7 +4,6 @@
 #include "token.h"
 #include "lexer.h"
 #include "list.h"
-#include "scope.h"
 #include "source.h"
 #include "data_type.h"
 #include "utilities.h"
@@ -54,7 +53,7 @@ static Parser create_parser(Context *context, char *module, size_t module_length
     // It's VERY important to use mod->path here and not path parameter as path could be freed
     // if this is an import in resolve_import(). This would then ruin all the symbol paths.
     Parser prs = { .context = context, .source = create_source(mod->path, 1, 1), 
-        .current_scope = create_scope(0, 0, 0), .current_module_uid = mod->uid,
+        .current_scope = create_scope(0, 0, 0, 0), .current_module_uid = mod->uid,
         .tokens = malloc(TOKEN_CAPACITY * sizeof(Token)), .token_count = 0, .index = 0, 
         .local_variable_count = 0, .total_unique_scopes = 0, .flags = 0, .tokenize_comments = tokenize_comments };
 
@@ -120,6 +119,7 @@ static void step(Parser *parser) {
         parser->current_token = &parser->tokens[++parser->index];
         parser->source.ln = this_token->ln;
         parser->source.col = this_token->col;
+        parser->current_scope.index_in_file = parser->index;
     }
 
     if (parser->tokenize_comments || this_token->type != TOK_COMMENT)
@@ -199,7 +199,7 @@ static Token *peek(Parser *parser, const int offset) {
 }
 
 static void reset_current_scope(Parser *parser) {
-    parser->current_scope.level = parser->current_scope.scope_uid = parser->current_scope.function_uid = 0;
+    parser->current_scope.scope_uid = parser->current_scope.function_uid = 0;
 }
 
 static bool is_data_type(Parser *parser) {
@@ -493,7 +493,7 @@ static List parse_body(Parser *parser, bool require_braces) {
 }
 
 static AST *parse_function(Parser *parser, List decorators, AST *group) {
-    parser->current_scope.level = 0;
+    reset_current_scope(parser);
     AST *ast = new_ast(AST_FUNCTION, new_ast_arguments);
     parser->current_scope.function_uid = ast->uid;
 
@@ -517,7 +517,13 @@ static AST *parse_function(Parser *parser, List decorators, AST *group) {
         &ast->function.data_type, &ast->scope, group == NULL ? NO_SECTION : group->group.group_uid, 
         (Symbol_Attribute){ .parameters = &ast->function.parameters });
 
-    ast->function.body = parse_body(parser, true);
+    if (this_token->type == TOK_SEMICOLON) {
+        ast->function.body = create_list(sizeof(AST *));
+        ast->function.no_body = true;
+    } else {
+        ast->function.body = parse_body(parser, true);
+        ast->function.no_body = false;
+    }
 
     parser->local_variable_count = 0;
     reset_current_scope(parser);
@@ -556,21 +562,21 @@ static AST *parse_if(Parser *parser) {
     step(parser);
     ast->if_.condition = parse_condition(parser, NULL);
 
-    const size_t uid_before = parser->current_scope.scope_uid;
-    const size_t level_before = parser->current_scope.level++;
-    parser->current_scope.scope_uid = ++parser->total_unique_scopes;
+    const size_t ooak = parser->current_scope.ooak_uid;
+    parser->current_scope.ooak_uid = ++parser->total_unique_scopes;
+    parser->current_scope.scope_uid++;
 
     ast->if_.body = parse_body(parser, true);
 
     if (compare_string(this_token->value, this_token->length, "else", 4)) {
-        parser->current_scope.scope_uid = parser->total_unique_scopes++;
+        parser->current_scope.ooak_uid = ++parser->total_unique_scopes;
         step(parser);
         ast->if_.else_body = parse_body(parser, !compare_string(this_token->value, this_token->length, "if", 2));
     } else 
         ast->if_.else_body = create_list(sizeof(AST *));
 
-    parser->current_scope.level = level_before;
-    parser->current_scope.scope_uid = uid_before;
+    parser->current_scope.ooak_uid = ooak;
+    parser->current_scope.scope_uid--;
     return ast;
 }
 
@@ -579,9 +585,9 @@ static AST *parse_while(Parser *parser, const bool do_first) {
     step(parser);
     ast->while_.do_first = do_first;
 
-    const size_t uid_before = parser->current_scope.scope_uid;
-    const size_t level_before = parser->current_scope.level++;
-    parser->current_scope.scope_uid = ++parser->total_unique_scopes;
+    const size_t ooak = parser->current_scope.ooak_uid;
+    parser->current_scope.ooak_uid = ++parser->total_unique_scopes;
+    parser->current_scope.scope_uid++;
 
     if (do_first) {
         ast->while_.body = parse_body(parser, true);
@@ -599,8 +605,8 @@ static AST *parse_while(Parser *parser, const bool do_first) {
         ast->while_.body = parse_body(parser, true);
     }
 
-    parser->current_scope.level = level_before;
-    parser->current_scope.scope_uid = uid_before;
+    parser->current_scope.ooak_uid = ooak;
+    parser->current_scope.scope_uid--;
     return ast;
 }
 
@@ -619,9 +625,9 @@ static AST *parse_for(Parser *parser) {
     if (ast->for_.is_reverse)
         step(parser);
 
-    const size_t uid_before = parser->current_scope.scope_uid;
-    const size_t level_before = parser->current_scope.level++;
-    parser->current_scope.scope_uid = ++parser->total_unique_scopes;
+    const size_t ooak = parser->current_scope.ooak_uid;
+    parser->current_scope.ooak_uid = ++parser->total_unique_scopes;
+    parser->current_scope.scope_uid++;
 
     ast->for_.lhs = parse(parser); // MUST be a declaration or assignment.
     eat(parser, TOK_RANGE);
@@ -641,8 +647,8 @@ static AST *parse_for(Parser *parser) {
 
     ast->for_.body = parse_body(parser, true);
 
-    parser->current_scope.level = level_before;
-    parser->current_scope.scope_uid = uid_before;
+    parser->current_scope.ooak_uid = ooak;
+    parser->current_scope.scope_uid--;
     return ast;
 }
 

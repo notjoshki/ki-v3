@@ -78,7 +78,7 @@ typedef struct {
 typedef struct {
     char *name;
     size_t name_length;
-    size_t module_uid;
+    int module_uid;
     HIR_Data *arguments;
     size_t argument_count;
     Data_Type data_type;

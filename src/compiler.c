@@ -193,7 +193,7 @@ static bool assemble_file(const Compiler *compiler, const char *file, char **out
     const size_t file_len = strlen(file);
     *out_object = change_file_extension(file, file_len, "o");
 
-    char *command = malloc(strlen(compiler->options.assembler_path) + file_len + strlen(*out_object) + 24);
+    char *command = malloc(strlen(compiler->options.assembler_path) + file_len + strlen(*out_object) + 34);
     sprintf(command, "%s -felf64 %s-o %s %s", compiler->options.assembler_path, compiler->options.flags & COMP_DEBUGINFO ? "-g " : "\0",
         *out_object, file);
 

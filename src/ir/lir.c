@@ -552,6 +552,11 @@ static void push_block(LIR *lir, HIR_Block *block) {
 }
 
 static void push_function(LIR *lir, HIR *hir) {
+    if (hir->function.flags & DECOR_EXTERN_FUNCTION) {
+        push_instruction(lir, LIR_EXTERN, nop, lir_function(hir->function.name, hir->function.name_length, -1, 0));
+        return;
+    }
+
     lir->label_count = 0;
 
     LIR_Operand id = lir_function(hir->function.name, hir->function.name_length, hir->function.module_uid, hir->function.flags);

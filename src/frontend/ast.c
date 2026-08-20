@@ -1,5 +1,4 @@
 #include "ast.h"
-#include "scope.h"
 #include "source.h"
 #include "data_type.h"
 #include "context.h"

@@ -4,6 +4,7 @@
 #include "utilities.h"
 #include "context.h"
 #include "parser.h"
+#include "decorators.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -347,7 +348,7 @@ static HIR_Call call_to_hir(Context *context, AST *ast) {
     assert(params != NULL);
 
     HIR_Call call = { .name = ast->call.name, .name_length = ast->call.name_length, 
-        .module_uid = symbol->module_uid,
+        .module_uid = symbol->flags & DECOR_EXTERN_FUNCTION ? -1 : (int)symbol->module_uid,
         .parameters = params, .arguments = malloc(params->count * sizeof(HIR_Data)), 
         //.data_type = *ast->call.symbol->data_type };
         .data_type = ast_data_type_to_hir_data_type(context, symbol->data_type, NULL, ast->module_uid) };
@@ -569,7 +570,6 @@ static HIR function_to_hir(Context *context, AST *ast) {
     hir.function.name_length = ast->function.name_length;
     hir.function.module_uid = ast->module_uid;
     hir.function.data_type = ast_data_type_to_hir_data_type(context, &ast->function.data_type, NULL, ast->module_uid);
-    // ast->function.data_type;
     hir.function.exported = symbol->exported;
     hir.function.flags = symbol->flags;
 

@@ -56,7 +56,7 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
     String_Builder builder = create_string_builder();
         
     if (entrypoint != NULL) {
-        append_whole_string(&builder, "default rel\nglobal _start\nsection .text\n");
+        append_whole_string(&builder, "default abs\nglobal _start\nsection .text\n");
 
         const Module *module = get_module(context, entrypoint->module_uid);
         char *name = malloc(module->name_length + entrypoint->name_length + 4);
@@ -78,7 +78,7 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
         append_whole_string(&builder, "mov rax, 60\nxor rdi, rdi\nsyscall\n");
         free(name);
     } else
-        append_whole_string(&builder, "default rel\nsection .text\n");
+        append_whole_string(&builder, "default abs\nsection .text\n");
 
     for (size_t i = 0; i < lir->count; i++) {
         char *code = emit_instruction(&state, &lir->instructions[i]);
@@ -366,6 +366,16 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
         return emit_load_8bit_destination(state, dst, src, dst_str, src_str, dst_type, src_type);
 
     char *code = malloc((strlen(dst_str) * 3) + strlen(src_str) + 64);
+
+    /* I just can't be bothered to fix this damn rel issue.
+    if (src->type == OPER_STRING) {
+        assert(!bin_is_float(dst_type));
+        sprintf(code, "lea %s, [%s]\n", dst_str, src_str);
+        free(dst_str);
+        free(src_str);
+        return code;
+    }
+    */
     
     switch (dst_type) {
         case PRIM_F32:
@@ -998,13 +1008,21 @@ static char *emit_inline_asm(LIR_Instruction *inst) {
 }
 
 static char *emit_call(State *state, LIR_Instruction *inst) {
-    const Module *module = get_module(state->context, inst->source.function.module_uid);
-    char *code = malloc(module->name_length + 
-        module->name_length + inst->source.function.length + 64);
+    char *code;
 
-    sprintf(code, "call _%.*s__%.*s\n", 
-        (int)module->name_length, module->name, 
-        (int)inst->source.function.length, inst->source.function.name);
+    if (inst->source.function.module_uid == -1) {// extern function
+        code = malloc(inst->source.function.length + 64);
+        sprintf(code, "call %.*s\n", (int)inst->source.function.length, inst->source.function.name);
+    } else {
+        Module *module = get_module(state->context, inst->source.function.module_uid);
+        
+        code = malloc(module->name_length + 
+            module->name_length + inst->source.function.length + 64);
+
+        sprintf(code, "call _%.*s__%.*s\n", 
+            (int)module->name_length, module->name, 
+            (int)inst->source.function.length, inst->source.function.name);
+    }
 
     if (inst->destination.argument.total_count <= MAX_REGISTER_ARGUMENT_COUNT)
         return code;
@@ -1200,10 +1218,14 @@ static char *emit_bool_not(State *state, LIR_Instruction *inst) {
 }
 
 static char *emit_extern(State *state, LIR_Instruction *inst) {
-    const Module *module = get_module(state->context, inst->source.function.module_uid);
+    Module *module = NULL;
+
+    if (inst->source.function.module_uid != -1)
+        module = get_module(state->context, inst->source.function.module_uid);
+
     char *code;
 
-    if (module == NULL) {
+    if (inst->source.function.module_uid == -1 || module == NULL) {
         code = malloc(inst->source.function.length + 19);
         sprintf(code, "extern %.*s\n", (int)inst->source.function.length, inst->source.function.name);
         return code;

@@ -578,12 +578,24 @@ static void resolve_decorator(AST *ast, Symbol *symbol) {
         symbol->flags |= DECOR_ONETIME_ARGUMENTS;
     else if (compare_string(ast->decorator.name, ast->declaration.name_length, "omit_frame_pointer", 18))
         symbol->flags |= DECOR_OMIT_FRAME_POINTER;
+    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "extern", 6))
+        symbol->flags |= DECOR_EXTERN_FUNCTION;
     else
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
             "Undefined decorator '%.*s'\n", (int)ast->decorator.name_length, ast->decorator.name);
 }
 
 static void resolve_function(Context *context, AST *ast) {
+    Scope *function_inner_scope = NULL;
+
+    if (ast->function.body.count > 0)
+        function_inner_scope = &((AST *)ast->function.body.items[0])->scope;
+    else if (ast->function.parameters.count > 0)
+        function_inner_scope = &((AST *)ast->function.parameters.items[0])->scope;
+
+    if (function_inner_scope != NULL)
+        push_scope(context, function_inner_scope);
+
     Symbol *sym = find_symbol(context, SYMBOL_FUNCTION, ast->function.name, ast->function.name_length, &ast->scope, ast->module_uid);
     replace_identifier_if_aliased(context, &ast->function.name, &ast->function.name_length, 
         ast->module_uid, alias_symbol_data(sym));
@@ -638,6 +650,28 @@ static void resolve_function(Context *context, AST *ast) {
             "Missing return statement in function '%.*s' of type '%s'\n", (int)ast->function.name_length, ast->function.name, str);
         free(str);
     }
+
+    if (function_inner_scope != NULL)
+        pop_scope(context);
+
+    bool has_extern_decorator = false;
+
+    for (size_t i = 0; i < ast->function.decorators.count; i++) {
+        AST *decorator = (AST *)ast->function.decorators.items[i];
+
+        if (compare_string(decorator->decorator.name, decorator->decorator.name_length, "extern", 6)) {
+            has_extern_decorator = true;
+            break;
+        }
+    }
+
+    if (ast->function.no_body && !has_extern_decorator)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Function '%.*s' not declared with a body but not decorated as extern\n", (int)ast->function.name_length, ast->function.name);
+    else if (!ast->function.no_body && has_extern_decorator)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Function '%.*s' declared with a body but also decorated as extern\n", (int)ast->function.name_length, ast->function.name);
+
 }
 
 static void resolve_declaration(Context *context, AST *ast) {
@@ -747,13 +781,27 @@ static void resolve_return(Context *context, AST *ast) {
 
 static void resolve_if(Context *context, AST *ast) {
     resolve_value(context, &ast->if_.condition);
-    resolve_ast_list(context, &ast->if_.body);
-    resolve_ast_list(context, &ast->if_.else_body);
+
+    if (ast->if_.body.count > 0) {
+        AST *first = ast->if_.body.items[0];
+        push_scope(context, &first->scope);
+        resolve_ast_list(context, &ast->if_.body);
+        pop_scope(context);
+    }
+
+    if (ast->if_.else_body.count > 0) {
+        AST *first = ast->if_.else_body.items[0];
+        push_scope(context, &first->scope);
+        resolve_ast_list(context, &ast->if_.else_body);
+        pop_scope(context);
+    }
 }
 
 static void resolve_while(Context *context, AST *ast) {
     resolve_value(context, &ast->while_.condition);
+    push_scope(context, &ast->scope);
     resolve_ast_list(context, &ast->while_.body);
+    pop_scope(context);
 }
 
 static void resolve_for(Context *context, AST *ast) {
@@ -763,6 +811,7 @@ static void resolve_for(Context *context, AST *ast) {
         log(ERROR_CRITICAL, lhs->source.path, lhs->source.ln, lhs->source.col,
             "Expected declaration or assignment for iterator variable but found '%s'\n", ast_type_to_string(lhs->type));
 
+    push_scope(context, &ast->scope);
     resolve_ast(context, ast->for_.lhs);
     resolve_value(context, &ast->for_.rhs);
 
@@ -770,6 +819,7 @@ static void resolve_for(Context *context, AST *ast) {
         resolve_value(context, &ast->for_.step);
 
     resolve_ast_list(context, &ast->for_.body);
+    pop_scope(context);
 }
 
 static void resolve_custom_types(Context *context) {

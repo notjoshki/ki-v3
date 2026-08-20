@@ -5,8 +5,8 @@ main() {
         sum += i;
     }
 
-    for rev i := 10..0 {
-        sum -= i;
+    for rev i1 := 10..0 {
+        sum -= i1;
     }
 
     sum = 10;

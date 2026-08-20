@@ -13,7 +13,7 @@ static inline LIR_Operand lir_string(char *string, size_t length) {
         .string.string = string, .string.length = length };
 }
 
-static inline LIR_Operand lir_function(char *name, size_t length, size_t module_uid, size_t flags) {
+static inline LIR_Operand lir_function(char *name, size_t length, int module_uid, size_t flags) {
     return (LIR_Operand){ .type = OPER_FUNCTION, .data_type = NO_DATA_TYPE, 
         .function.name = name, .function.length = length, .function.module_uid = module_uid, 
         .function.exported = false, .function.flags = flags };

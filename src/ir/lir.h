@@ -43,7 +43,7 @@ typedef struct {
 typedef struct {
     char *name;
     size_t length;
-    size_t module_uid;
+    int module_uid;
     bool exported;
     size_t flags;
 } LIR_Function;

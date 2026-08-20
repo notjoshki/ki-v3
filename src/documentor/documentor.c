@@ -235,7 +235,6 @@ static char *default_value_to_string(Context *context, AST *value) {
             sprintf(str, "%.*s.%.*s", (int)type->name_length, type->name, (int)member->name_length, member->name);
             return str;
         } default:
-            printf(">>>%s\n", ast_type_to_string(value->type));
             assert(false);
             return copy_whole_string("(none)");
     }

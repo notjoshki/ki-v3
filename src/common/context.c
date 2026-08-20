@@ -28,7 +28,7 @@ Context create_context(char *entrypoint_function) {
         .symbols = malloc(SYMBOL_CAPACITY * sizeof(Symbol)),
         .symbol_count = 0, .symbol_capacity = SYMBOL_CAPACITY,
         .modules = malloc(MODULE_CAPACITY * sizeof(Module)),
-        .module_count = 0, .module_capacity = MODULE_CAPACITY };
+        .module_count = 0, .module_capacity = MODULE_CAPACITY, .scope_stack_count = 0 };
 }
 
 static void delete_custom_type(Custom_Type *type) {
@@ -456,7 +456,8 @@ Symbol *find_symbol(Context *context, const Symbol_Type type, const char *name, 
         const Module *sym_module = get_module(context, sym->module_uid);
         const bool is_using = sym_module->using_all_symbols && sym->exported;
         const bool is_imported = (sym->exported && symbol_is_imported(sym, module));
-        const bool in_scope = type == SYMBOL_FUNCTION || (scope != FIND_IN_ANY_SCOPE && is_in_scope(sym->scope, scope));
+        const bool in_scope = type == SYMBOL_FUNCTION || (scope != FIND_IN_ANY_SCOPE && 
+            is_in_scope(context, sym->scope)); //scope->scope_uid < sym->scope->scope_uid ? scope->scope_uid : sym->scope->scope_uid));
         const bool in_same_module = compare_string(sym_module->name, sym_module->name_length, module->name, module->name_length);
         
         if ((is_using || is_imported || in_same_module || module == FIND_IN_ANY_MODULE) && in_scope)
@@ -493,4 +494,25 @@ Symbol *get_symbol(Context *context, const size_t uid) {
     }
 
     return NULL;
+}
+
+void push_scope(Context *context, Scope *scope) {
+    assert(context->scope_stack_count < SCOPE_STACK_CAPACITY);
+    context->scope_stack[context->scope_stack_count++] = *scope;
+}
+
+bool is_in_scope(Context *context, const Scope *scope) {
+    assert(context->scope_stack_count > 0);
+
+    for (int i = context->scope_stack_count - 1; i >= 0; i--) {
+        const Scope *prev = &context->scope_stack[i];
+
+        //if (prev->scope_uid < clamp)
+          //  return false;
+
+        if (prev->function_uid == scope->function_uid && prev->ooak_uid <= scope->ooak_uid)
+            return true;
+    }
+
+    return false;
 }

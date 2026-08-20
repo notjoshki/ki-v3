@@ -20,7 +20,7 @@ byte: alias u8;
 File: alias i32;
 
 // Heap definitions.
-asm("section .bss\n_ki_heap: resq 1\n_ki_heap_ptr: resq 1\n_ki_heap_free_list: resq 1\nsection .text");
+asm("section .data\n_ki_heap: dq 0\n_ki_heap_ptr: dq 0\n_ki_heap_free_list: dq 0\nsection .text");
 
 // Print a string to standard output.
 #io
@@ -358,12 +358,12 @@ format_string(destination: &string, format: &string, s1: &string, s2: &string, s
 
     specifier_count := 0;
 
-    for i := 0..format_len {
-        if format.data[i] != '%' {
+    for i1 := 0..format_len {
+        if format.data[i1] != '%' {
             continue;
         }
 
-        if i > 0 && format.data[i - 1] == '/' {
+        if i1 > 0 && format.data[i1 - 1] == '/' {
             continue;
         }
 

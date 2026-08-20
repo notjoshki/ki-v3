@@ -2,7 +2,6 @@
 #define AST_H
 
 #include "list.h"
-#include "scope.h"
 #include "data_type.h"
 #include "source.h"
 #include "token.h"
@@ -119,6 +118,7 @@ typedef struct {
     List body;
     List decorators;
     size_t group_uid;
+    bool no_body; // For extern functions.
     bool resolved;
 } AST_Function;
 
