@@ -4,4 +4,4 @@ ki
 *.out
 *.kir
 .vscode
-main.ki
+./main.ki

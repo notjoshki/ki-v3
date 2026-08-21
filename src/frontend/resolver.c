@@ -643,7 +643,7 @@ static void resolve_function(Context *context, AST *ast) {
             return_stmt = ((AST *)ast->function.body.items[i]);
     }
 
-    if ((ast->function.data_type.primitive_type != PRIM_VOID || ast->function.data_type.pointer_count > 0) && 
+    if (!ast->function.no_body && (ast->function.data_type.primitive_type != PRIM_VOID || ast->function.data_type.pointer_count > 0) && 
             return_stmt == NULL && !(sym->flags & DECOR_IGNORE_MISSING_RETURN)) {
         char *str = data_type_to_string(&ast->function.data_type);
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
@@ -729,9 +729,19 @@ static void resolve_call_arguments(Context *context, AST *ast) {
 }
 
 static void resolve_call(Context *context, AST *ast) {
+    char *name_before = copy_string(ast->call.name, ast->call.name_length);
+
     Symbol *sym = find_symbol(context, SYMBOL_FUNCTION, ast->call.name, ast->call.name_length, &ast->scope, ast->module_uid);
     replace_identifier_if_aliased(context, &ast->call.name, &ast->call.name_length, 
         ast->module_uid, alias_symbol_data(sym));
+
+    if (!compare_string(name_before, strlen(name_before), ast->call.name, ast->call.name_length)) {
+        free(name_before);
+        resolve_call(context, ast);
+        return;
+    }
+
+    free(name_before);
 
     if (sym == NULL) {
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
@@ -960,6 +970,12 @@ static void import_identifier(Context *context, AST *identifier, Module *from_mo
         alias_symbol_data(func));
 
     if (func != NULL && func->module_uid == from_module->uid) {
+        if (func->flags & DECOR_EXTERN_FUNCTION) {
+            func->module_uid = -1;
+        }
+
+        printf("%.*s\n", (int)func->name_length, func->name);
+
         push_item(&into_module->imported_identifiers, (AST *)identifier);
         return;
     }
@@ -977,7 +993,7 @@ static void import_identifier(Context *context, AST *identifier, Module *from_mo
     }
 
     log(ERROR_CRITICAL, identifier->source.path, identifier->source.ln, identifier->source.col,
-        "No such skdfs function or data type '%.*s' found in module '%.*s'\n", 
+        "No such function or data type '%.*s' found in module '%.*s'\n", 
         (int)identifier->identifier.length, identifier->identifier.identifier,
         (int)from_module->name_length, from_module->name);
 }

@@ -1234,6 +1234,7 @@ static char *emit_extern(State *state, LIR_Instruction *inst) {
     code = malloc(module->name_length + inst->source.function.length + 20);
     sprintf(code, "extern _%.*s__%.*s\n", (int)module->name_length, module->name,
         (int)inst->source.function.length, inst->source.function.name);
+
     return code;
 }
 

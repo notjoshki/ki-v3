@@ -13,19 +13,23 @@
 static void help(const char *context) {
     printf("Usage: %s <command> [options...] <file>\n"
            "Commands:\n"
-           "    build            Produce an executable\n"
-           "    document         Produce a markdown file\n"
-           "    ir               Produce an IR file\n"
-           "    object           Produce an object file\n"
-           "    source           Produce an assembly file\n"
+           "    build                Produce an executable\n"
+           "    document             Produce a markdown file\n"
+           "    ir                   Produce an IR file\n"
+           "    object               Produce an object file\n"
+           "    source               Produce an assembly file\n"
            "Options:\n"
-           "    --help           Show this information\n"
-           "    --version        Show the compiler version\n"
-           "    -freestanding    Don't use the standard library or initialize the heap\n"
-           "    -g               Build with debugging information\n"
-           "    -ir-explicit     Generate IR in explicit form\n"
-           "    -o <name>        Specify the output filename\n"
-           "    -unopt           Disable optimization\n"
+           "    --help               Show this information\n"
+           "    --version            Show the compiler version\n"
+           "    -as-flags <\"...\">    Specify flags to pass during assembling\n"
+           "    -doc-exported        Show only exported symbols in documentation\n"
+           "    -freestanding        Don't use the standard library or initialize the heap\n"
+           "    -g                   Build with debugging information\n"
+           "    -ir-explicit         Generate IR in explicit form\n"
+           "    -ld <path>           Specify the linker to use in compilation\n"
+           "    -ld-flags <\"...\">    Specify flags to pass during linkage\n"
+           "    -o <name>            Specify the output filename\n"
+           "    -unopt               Disable optimization\n"
            , context);
 }
 
@@ -85,6 +89,13 @@ static bool parse_command_line(const int argc, char **argv, Compiler *compiler) 
         } else if (strcmp(arg, "--version") == 0) {
             printf(VERSION);
             return EXIT_SUCCESS;
+        } else if (strcmp(arg, "-as-flags") == 0) {
+            if (!option_is_valid_with_command_and_other_options(
+                    (compiler->options.flags & COMP_COMPILE_ASM) || (compiler->options.flags & COMP_OBJECT), arg) ||
+                !parse_option_argument(argc, i, "-as-flags", "<\"...\">"))
+                continue;
+
+            compiler->options.assemble_flags = argv[++i];
         } else if (strcmp(arg, "-doc-exported") == 0) {
             if (option_is_valid_with_command_and_other_options(compiler->options.flags & COMP_DOCUMENT, arg))
                 compiler->options.flags |= COMP_DOC_EXPORTED;
@@ -98,6 +109,18 @@ static bool parse_command_line(const int argc, char **argv, Compiler *compiler) 
             if (option_is_valid_with_command_and_other_options(
                     !(compiler->options.flags & COMP_SOURCE) && !(compiler->options.flags & COMP_IR), arg))
                 compiler->options.flags |= COMP_DEBUGINFO;
+        } else if (strcmp(arg, "-ld") == 0) {
+            if (option_is_valid_with_command_and_other_options(
+                    !(compiler->options.flags & COMP_SOURCE) && !(compiler->options.flags & COMP_IR), arg) ||
+                !parse_option_argument(argc, i, "-ld", "<path>"))
+                compiler->options.linker_path = argv[++i];
+        } else if (strcmp(arg, "-ld-flags") == 0) {
+            if (!option_is_valid_with_command_and_other_options(
+                    !(compiler->options.flags & COMP_SOURCE) && !(compiler->options.flags & COMP_IR), arg) ||
+                !parse_option_argument(argc, i, "-ld-flags", "<\"...\">"))
+                continue;
+
+            compiler->options.linkage_flags = argv[++i];
         } else if (strcmp(arg, "-o") == 0 && parse_option_argument(argc, i, "-o", "<name>")) {
             compiler->output_path = argv[++i];
             compiler->options.flags |= COMP_OUTFILE_SPECIFIED;

@@ -20,6 +20,8 @@
 typedef struct {
     char *assembler_path;
     char *linker_path;
+    char *assemble_flags;
+    char *linkage_flags;
     size_t flags;
 } Compiler_Options;
 
@@ -30,7 +32,7 @@ typedef struct {
 } Compiler;
 
 static inline Compiler_Options create_compiler_options(char *assembler_path, char *linker_path, size_t flags) {
-    return (Compiler_Options){ .assembler_path = assembler_path, .linker_path = linker_path, .flags = flags };
+    return (Compiler_Options){ .assembler_path = assembler_path, .linker_path = linker_path, .assemble_flags = "\0", .linkage_flags = "\0", .flags = flags };
 }
 
 static inline Compiler create_compiler(char *infile, char *outfile, Compiler_Options options) {

@@ -182,12 +182,13 @@ static bool compile_modules(Compiler *compiler, Context *context, char *main_pat
         if (module->builtin)
             continue;
 
-        *out_count += 1;
-
-        if (!compile_from_resolved_root(compiler, context, module->path, module->path_length, module->root, false, &files[i], module->name)) {
-            cleanup(NULL, files, roots, i, false);
+        if (!compile_from_resolved_root(compiler, context, module->path, module->path_length, module->root, false, &files[*out_count], module->name)) {
+            cleanup(NULL, files, roots, *out_count + 1, false);
             return false;
         }
+
+        *out_count += 1;
+
     }
 
     *out_roots = roots;
@@ -202,8 +203,10 @@ static bool assemble_file(const Compiler *compiler, const char *file, char **out
     const size_t file_len = strlen(file);
     *out_object = change_file_extension(file, file_len, "o");
 
-    char *command = malloc(strlen(compiler->options.assembler_path) + file_len + strlen(*out_object) + 34);
-    sprintf(command, "%s -felf64 %s-o %s %s", compiler->options.assembler_path, compiler->options.flags & COMP_DEBUGINFO ? "-g " : "\0", *out_object, file);
+    char *command = malloc(strlen(compiler->options.assembler_path) + file_len + strlen(*out_object) + strlen(compiler->options.assemble_flags) + 37);
+    sprintf(command, "%s %s %s %s-o %s %s", compiler->options.assembler_path, strcmp(compiler->options.assembler_path, "nasm") == 0 ? "-felf64" : "\0",
+        compiler->options.assemble_flags, 
+        compiler->options.flags & COMP_DEBUGINFO ? "-g " : "\0", *out_object, file);
 
     const int status = system(command);
     free(command);
@@ -217,17 +220,24 @@ static void remove_files(Context *context, char **files, const size_t count) {
     }
 }
 
-static bool assemble_files(const Compiler *compiler, Context *context, char **files, const size_t file_count, char ***out_objects) {
+static bool assemble_files(const Compiler *compiler, Context *context, char **files, const size_t file_count, char ***out_objects, size_t *out_objects_count) {
+    *out_objects_count = 0;
     char **objs = malloc(file_count * sizeof(char *));
 
     for (size_t i = 0; i < file_count; i++) {
-        if (!assemble_file(compiler, files[i], &objs[i], get_module(context, i))) {
+        const Module *module = get_module(context, i);
+
+        if (module->builtin)
+            continue;
+
+        if (!assemble_file(compiler, files[i], &objs[*out_objects_count], get_module(context, i))) {
             remove_files(context, files, file_count);
-            cleanup(NULL, objs, NULL, i + 1, false);
+            cleanup(NULL, objs, NULL, *out_objects_count + 1, false);
             *out_objects = NULL;
             return false;
         }
 
+        *out_objects_count += 1;
     }
 
     if (!(compiler->options.flags & COMP_DEBUGINFO))
@@ -252,8 +262,8 @@ static bool link_files(const Compiler *compiler, Context *context, char **files,
         str_len += len + 1;
     }
 
-    char *command = malloc(strlen(compiler->options.linker_path) + strlen(compiler->output_path) + str_len + 41);
-    sprintf(command, "%s -o %s %s %s", compiler->options.linker_path, compiler->output_path, str,
+    char *command = malloc(strlen(compiler->options.linker_path) + strlen(compiler->output_path) + str_len + strlen(compiler->options.linkage_flags) + 42);
+    sprintf(command, "%s %s -o %s %s %s", compiler->options.linker_path, compiler->options.linkage_flags, compiler->output_path, str,
         compiler->options.flags & COMP_FREESTANDING ? "\0" : "/usr/local/share/ki/libki.a");
     free(str);
 
@@ -332,24 +342,28 @@ bool compile(Compiler *compiler) {
     }
 
     char **object_files = NULL;
+    size_t object_file_count;
     
-    if (!assemble_files(compiler, &context, output_files, output_file_count, &object_files)) {
+    if (!assemble_files(compiler, &context, output_files, output_file_count, &object_files, &object_file_count)) {
         log(ERROR_CRITICAL, compiler->input_path, LOG_NOLN, LOG_NOCOL,  "Failed to assemble files\n");
+        cleanup(NULL, object_files, NULL, object_file_count, false);
         cleanup(&context, output_files, roots, output_file_count, true);
         return false;
     }
 
     if (!(compiler->options.flags & COMP_OBJECT)) {
-        if (!link_files(compiler, &context, object_files, output_file_count)) {
+        if (!link_files(compiler, &context, object_files, object_file_count)) {
             log(ERROR_CRITICAL, LOG_NOFILE, LOG_NOLN, LOG_NOCOL, "Failed to link files\n");
+            cleanup(NULL, object_files, NULL, object_file_count, false);
             cleanup(&context, output_files, roots, output_file_count, true);
             return false;
         }
 
-        remove_files(&context, object_files, output_file_count);
+
+        remove_files(&context, object_files, object_file_count);
     }
 
-    cleanup(NULL, object_files, NULL, output_file_count, false);
+    cleanup(NULL, object_files, NULL, object_file_count, false);
     cleanup(&context, output_files, roots, output_file_count, true);
     return true;
 }

@@ -1,0 +1,14 @@
+using ncurses;
+
+main() {
+    initscr();
+    cbreak();
+
+    mvprintw(0, 0, "Hello from Ki!\n\nHere, type some stuff\n");
+
+    while true {
+        getch();
+    }
+
+    endwin();
+}

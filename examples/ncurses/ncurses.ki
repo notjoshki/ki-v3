@@ -1,0 +1,48 @@
+export #functions;
+
+@extern ki_initscr(): void;
+@extern ki_cbreak(): void;
+@extern ki_getch(): i32;
+@extern ki_endwin(): void;
+@extern ki_mvprintw(y: u32, x: u32, format: &char, s1: &char = null, s2: &char = null, s3: &char = null);
+
+#functions
+initscr() {
+    ki_initscr();
+}
+
+#functions
+cbreak() {
+    ki_cbreak();
+}
+
+#functions
+getch(): i32 {
+    return ki_getch();
+}
+
+#functions
+endwin() {
+    ki_endwin();
+}
+
+#functions
+mvprintw(y: u32, x: u32, format: &string, s1: &string = null, s2: &string = null, s3: &string = null) {
+    s1_cstr: &char = null;
+    s2_cstr: &char = null;
+    s3_cstr: &char = null;
+
+    if s1 != null {
+        s1_cstr = s1.data;
+    }
+
+    if s2 != null {
+        s2_cstr = s2.data;
+    }
+
+    if s3 != null {
+        s3_cstr = s3.data;
+    }
+
+    ki_mvprintw(y, x, format.data, s1_cstr, s2_cstr, s3_cstr);
+}
