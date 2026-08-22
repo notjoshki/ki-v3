@@ -1,6 +1,6 @@
 # Ki v3
 
-Ki is a low-level programming language written from scratch. It's completely independant from [libc](https://en.wikipedia.org/wiki/C_standard_library) by using its own self-hosted libraries and [llvm](https://en.wikipedia.org/wiki/LLVM) by using a custom backend. It aims to be a fun, non-production improvement on C.
+Ki is a low-level programming language written from scratch. It's completely independent from [libc](https://en.wikipedia.org/wiki/C_standard_library) by using its own self-hosted libraries, and independent from [llvm](https://en.wikipedia.org/wiki/LLVM) by using a custom backend. It aims to be a fun, non-production improvement on C.
 
 > [!WARNING]
 > Ki is still in early development, expect breaking bugs and missing features.
