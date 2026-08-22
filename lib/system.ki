@@ -2,7 +2,7 @@
 // https://github.com/notjoshki/ki-v3
 // NOTE: This should only be edited by compiler developers.
 
-export #syscalls, #constants;
+export #syscalls, #constants, #structures;
 
 #constants {
 STDIN: const 0;
@@ -20,6 +20,32 @@ PROT_WRITE: const 2;
 
 MAP_PRIVATE: const 0x20;
 MAP_ANONYMOUS: const 0x2;
+
+AF_INET: const 2;
+SOCK_STREAM: const 1;
+INADDR_ANY: const 0x00000000; // 127.0.0.1
+IPPROTO_IP: const 0;
+}
+
+#structures
+Socket_Address: struct {
+    family: u16;
+    port: u16;
+    data: u8[12];
+}
+
+#structures
+Socket_Address_In: struct {
+    family: u16;
+    port: u16;
+    address: u32;
+    _padding: i64;
+}
+
+// TODO: When possible, I'd like this as a macro.
+#syscalls
+htons(host: u16): u16 {
+    return (host << 8) | (host >> 8);
 }
 
 // Returns the number of bytes read on success, -1 on error.
@@ -85,9 +111,154 @@ munmap(address: &void, size: usize): i32 {
     asm("mov rax, 11\nsyscall");
 }
 
+
+// Returns a negative number on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+socket(family: u32, type: u32, protocol: u32): i32 {
+    asm("mov rax, 41\nsyscall");
+}
+
+// Returns 0 on success.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+connect(file_descriptor: i32, address: &Socket_Address, length: usize): i32 {
+    asm("mov rax, 42\nsyscall");
+}
+
+// Returns -1 on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+accept(file_descriptor: i32, address: &Socket_Address, length: &usize): i32 {
+    asm("mov rax, 43\nsyscall");
+}
+
+// Returns the number of bytes sent, -1 on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+sendto(file_descriptor: i32, buffer: &u8, size: usize, flags: u32, address: &Socket_Address, length: &usize): i32 {
+    asm("mov rax, 44\nsyscall");
+}
+
+// Returns the number of bytes sent, -1 on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+send(file_descriptor: i32, buffer: &u8, size: usize): i32 {
+    asm("xor r10, r10\nxor r8, r8\nxor r9, r9\nmov rax, 44\nsyscall");
+}
+
+// Returns the number of bytes received, -1 on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+recvfrom(file_descriptor: i32, buffer: &u8, size: usize, flags: u32, address: &Socket_Address, length: &usize): i32 {
+    asm("mov rax, 45\nsyscall");
+}
+
+// Returns the number of bytes received, -1 on failure.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+recv(file_descriptor: i32, buffer: &u8, size: usize): i32 {
+    asm("xor r10, r10\nxor r8, r8\nxor r9, r9\nmov rax, 45\nsyscall");
+}
+
+// Returns 0 on success.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+bind(file_descriptor: i32, address: &Socket_Address, length: usize): i32 {
+    asm("mov rax, 49\nsyscall");
+}
+
+// Returns 0 on success.
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+#syscalls
+listen(file_descriptor: i32, backlog: u32): i32 {
+    asm("mov rax, 50\nsyscall");
+}
+
 #syscalls
 @onetime_arguments
 @omit_frame_pointer
 exit(code: i32) {
     asm("mov rax, 60\nsyscall");
+}
+
+// Returns null on failure.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+getcwd(buffer: &u8, size: usize): &void {
+    asm("mov rax, 79\nsyscall");
+}
+
+// Returns 0 on success.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+rename(old_name: &char, new_name: &char): i32 {
+    asm("mov rax, 82\nsyscall");
+}
+
+// Returns 0 on success.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+mkdir(path_name: &char): i32 {
+    asm("mov rax, 83\nsyscall");
+}
+
+// Returns 0 on success.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+rmdir(path_name: &char): i32 {
+    asm("mov rax, 84\nsyscall");
+}
+
+// Returns a negative number on failure.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+creat(path_name: &char, mode: u32): i32 {
+    asm("mov rax, 85\nsyscall");
+}
+
+// Returns 0 on success.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+link(old_name: &char, new_name: &char): i32 {
+    asm("mov rax, 86\nsyscall");
+}
+
+// Returns 0 on success.
+#syscalls
+@ignore_missing_return
+@onetime_arguments
+@omit_frame_pointer
+unlink(path_name: &char): i32 {
+    asm("mov rax, 87\nsyscall");
 }

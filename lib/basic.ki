@@ -774,20 +774,44 @@ open_file(name: &string, mode: char): File {
 
 // Close a file descriptor.
 #io
-close_file(file: File): i32 {
-    return system.close(file);
+close_file(file: File): bool {
+    return system.close(file) == 0;
 }
 
 // Write to a file descriptor.
 #io
-write_file(file: File, text: &string): i32 {
-    return system.write(file, text.data, text.length);
+write_file(file: File, text: &string): bool {
+    return system.write(file, text.data, text.length) > -1;
 }
 
 // Read from a file descriptor.
 #io
-read_file(file: File, buffer: &char, capacity: usize): i32 {
-    return system.read(file, buffer, capacity);
+read_file(file: File, buffer: &char, capacity: usize): bool {
+    return system.read(file, buffer, capacity) > -1;
+}
+
+// Create a new file. Returns a negative number on failure.
+#io
+create_file(path: &string): File {
+    return system.creat(path.data, 644o);
+}
+
+// Create a new directory.
+#io
+create_directory(path: &string): bool {
+    return system.mkdir(path.data) == 0;
+}
+
+// Remove a file.
+#io
+remove_file(path: &string): bool {
+    return system.unlink(path.data) == 0;
+}
+
+// Remove a directory.
+#io
+remove_directory(path: &string): bool {
+    return system.rmdir(path.data) == 0;
 }
 
 // Set the allocation size of heap objects at chosen indexes.
@@ -940,6 +964,7 @@ assert(condition: bool, error_message: &string) {
         return;
     }
 
-    print(error_message);
+    print("assert failed: ");
+    println(error_message);
     exit(EXIT_FAILURE);
 }

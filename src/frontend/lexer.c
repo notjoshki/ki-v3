@@ -250,6 +250,25 @@ static Token lex_string(Lexer *lexer) {
     else
         step(lexer);
 
+    // Concatenate the following string if present.
+    while (isspace(lexer->current_char))
+        step(lexer);
+
+    if (lexer->current_char == '"') {
+        Token next;
+
+        while (lexer->current_char == '"') {
+            next = lex_string(lexer);
+            value = realloc(value, (length + next.length + 1) * sizeof(char));
+            strcat(value, next.value);
+            free(next.value);
+            length += next.length;
+
+            while (isspace(lexer->current_char))
+                step(lexer);
+        }
+    }
+
     return create_token(TOK_STRING, value, length, ln, col);
 }
 

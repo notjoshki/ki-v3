@@ -44,7 +44,8 @@ size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, co
     size_t size = 0;
 
     for (size_t i = 0; i < type->member_count; i++)
-        size += primitive_type_to_size(data_type_to_primitive_type(&type->members[i].data_type));
+        size += primitive_type_to_size(data_type_to_primitive_type(&type->members[i].data_type))
+            * (type->members[i].data_type.array_size == 0 ? 1 : type->members[i].data_type.array_size);
 
     return size;
 }

@@ -232,14 +232,6 @@ static AST *parse_value(Parser *parser);
 static Data_Type parse_data_type(Parser *parser) {
     Data_Type dt = create_data_type(PRIM_VOID, 0);
 
-    if (peek(parser, 1)->type == TOK_ACCESS) {
-        // This is a module access.
-        dt.module_name = copy_string(this_token->value, this_token->length);
-        dt.module_length = this_token->length;
-        eat(parser, TOK_IDENTIFIER);
-        step(parser);
-    }
-
     while (this_token->type == TOK_BOOL_AND) {
         dt.pointer_count += 2;
         step(parser);
@@ -247,6 +239,14 @@ static Data_Type parse_data_type(Parser *parser) {
 
     if (this_token->type == TOK_AND) {
         dt.pointer_count++;
+        step(parser);
+    }
+
+    if (peek(parser, 1)->type == TOK_ACCESS) {
+        // This is a module access.
+        dt.module_name = copy_string(this_token->value, this_token->length);
+        dt.module_length = this_token->length;
+        eat(parser, TOK_IDENTIFIER);
         step(parser);
     }
 

@@ -1,0 +1,44 @@
+import ki.system;
+
+BUFFER_SIZE: const 4096;
+
+main() {
+    server := system.socket(system.AF_INET, system.SOCK_STREAM, system.IPPROTO_IP);
+    assert(server >= 0, "socket failed");
+
+    address := { 
+        .family = system.AF_INET, 
+        .port = system.htons(8080),
+        .address = system.INADDR_ANY 
+    }: system.Socket_Address_In;
+
+    address_len := sizeof(address);
+
+    response := "HTTP/2.0 200 OK\r\n" 
+                "Content-Type: text/html\r\n\r\n" 
+                "<html><body><h1>Hello from Ki!</h1></body></html>\r\n";
+
+    status := system.bind(server, cast(&system.Socket_Address &address), address_len);
+    assert(status == 0, "failed to bind");
+
+    status = system.listen(server, 1)
+    assert(status == 0, "failed to listen");
+
+    print("Ultra cool Ki server listening on 127.0.0.1:8080\n");
+
+    client := system.accept(server, cast(&system.Socket_Address &address), &address_len);
+    assert(client >= 0, "accept failed");
+
+    buffer: char[BUFFER_SIZE];
+    bytes_received := system.recv(client, buffer, BUFFER_SIZE - 1);
+    buffer[bytes_received] = '\0';
+
+    buffer_str := buffer_to_string(buffer);
+    print_format("Received:\n%", buffer_str);
+    delete_string(buffer_str);
+
+    system.send(client, response.data, response.length);
+
+    system.close(client);
+    system.close(server);
+}
