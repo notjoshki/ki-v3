@@ -13,6 +13,7 @@ Ki is a low-level programming language written from scratch. It's completely ind
 - Decorators
 - Builtin strings
 - Builtin markdown generator
+- Builtin IR string representation generator
 - Blazingly-fast compile times
 
 ## Installation
