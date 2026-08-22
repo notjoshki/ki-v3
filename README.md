@@ -28,7 +28,7 @@ $ sudo make install
 
 Hello world:
 
-```cs
+```rs
 main() {
     print("Hello, world!\n");
 }
@@ -36,7 +36,7 @@ main() {
 
 Print the alphabet in ascending order:
 
-```cs
+```rs
 main() {
     for character := 'A'..='Z' {
         print_char(character);
@@ -48,7 +48,7 @@ main() {
 
 Greet the user:
 
-```cs
+```rs
 main() {
     name := input("What is your name? ");
     print_format("Hello, %\n", name);
