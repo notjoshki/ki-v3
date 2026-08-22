@@ -172,10 +172,20 @@ static void resolve_enum_members(Context *context, Custom_Type *type) {
     type->resolved = true;
 }
 
-static void resolve_struct_members(Context *context, Custom_Type *type) {
+static void resolve_struct_members(Context *context, Custom_Type *type, const Source *source) {
     for (size_t i = 0; i < type->member_count; i++) {
         Custom_Type_Member *member = &type->members[i];
         resolve_data_type(context, &member->data_type, &member->source, type->module_uid);
+
+        if (member->data_type.primitive_type != PRIM_CUSTOM)
+            continue;
+
+        const Custom_Type *ct = find_custom_type(context, CUST_STRUCT, member->data_type.custom_name, member->data_type.custom_length,
+            member->data_type.module_uid == -1 ? type->module_uid : (size_t)member->data_type.module_uid);
+
+        if (ct->uid == type->uid)
+            log(ERROR_CRITICAL, source->path, source->ln, source->col,
+                "Structs cannot have members of themselves; must be a pointer\n");
     }
 
     type->resolved = true;
@@ -832,14 +842,17 @@ static void resolve_for(Context *context, AST *ast) {
     pop_scope(context);
 }
 
-static void resolve_custom_types(Context *context) {
+static void resolve_custom_types(Context *context, const size_t module_uid) {
     for (size_t i = 0; i < context->custom_type_count; i++) {
         Custom_Type *type = &context->custom_types[i];
+
+        if (type->module_uid != module_uid) // Don't need to re-resolve a record across each module.
+            continue;
 
         if (context->custom_types[i].type == CUST_ENUM)
             resolve_enum_members(context, type);
         else
-            resolve_struct_members(context, type);
+            resolve_struct_members(context, type, &type->source);
     }
 }
 
@@ -1139,7 +1152,7 @@ static void resolve_root(Context *context, AST *ast) {
             resolve_alias(context, (AST *)ast->root.nodes.items[i]);
     }
 
-    resolve_custom_types(context);
+    resolve_custom_types(context, ast->module_uid);
     resolve_ast_list(context, &ast->root.nodes);
 }
 

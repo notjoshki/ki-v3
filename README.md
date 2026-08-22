@@ -13,6 +13,7 @@ Ki is a low-level programming language written from scratch. It's completely ind
 - Decorators
 - Builtin strings
 - Builtin markdown generator
+- Blazingly-fast compile times
 
 ## Installation
 
@@ -54,6 +55,8 @@ main() {
 }
 ```
 
+You can find more advanced examples [here](./examples/), or see the [compiler tests](./tests/).
+
 ## Usage
 
 ```
@@ -72,10 +75,13 @@ ki <command> [options...] <file>
 | --- | --- |
 | ```--help``` | Show this information |
 | ```--version``` | Show the compiler version |
+| ```-as-flags <...>``` | Specify flags to pass during assembling |
 | ```-doc-exported``` | Show only exported symbols in documentation |
 | ```-freestanding``` | Don't use the standard library or initialize the heap |
 | ```-g``` | Build with debugging information |
 | ```-ir-explicit``` | Generate IR in explicit form |
+| ```-ld <path>``` | Specify the linker to use in compilation |
+| ```-ld-flags <...>``` | Specify flags to pass during linkage |
 | ```-o <name>``` | Specify the output filename |
 | ```-unopt``` | Disable optimization |
 

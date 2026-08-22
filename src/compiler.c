@@ -156,7 +156,7 @@ static void cleanup(Context *context, char **output_files, AST **roots, const si
 }
 
 static bool compile_modules(Compiler *compiler, Context *context, char *main_path, size_t main_path_length, 
-        char ***out_output_files, AST ***out_roots, size_t *out_count) {
+        char ***out_output_files, size_t **out_output_modules, AST ***out_roots, size_t *out_count) {
     *out_output_files = NULL;
     *out_roots = NULL;
     *out_count = 0;
@@ -171,6 +171,8 @@ static bool compile_modules(Compiler *compiler, Context *context, char *main_pat
     roots[0] = main_root;
     char **files = malloc((context->module_count + 1) * sizeof(char *));
     files[0] = main_outfile;
+    size_t *modules = malloc((context->module_count + 1) * sizeof(size_t));
+    modules[0] = main_root->module_uid;
     *out_count = 1;
 
     // Module 0 is main, already done.
@@ -187,12 +189,13 @@ static bool compile_modules(Compiler *compiler, Context *context, char *main_pat
             return false;
         }
 
+        modules[*out_count] = module->uid;
         *out_count += 1;
-
     }
 
     *out_roots = roots;
     *out_output_files = files;
+    *out_output_modules = modules;
     return true;
 }
 
@@ -213,25 +216,25 @@ static bool assemble_file(const Compiler *compiler, const char *file, char **out
     return status == 0;
 }
 
-static void remove_files(Context *context, char **files, const size_t count) {
+static void remove_files(Context *context, char **files, const size_t *modules, const size_t count) {
     for (size_t i = 0; i < count; i++) {
-        if (!get_module(context, i)->builtin && remove(files[i]) != 0)
+        if (!get_module(context, modules[i])->builtin && remove(files[i]) != 0)
             log(ERROR_CRITICAL, LOG_NOFILE, LOG_NOLN, LOG_NOCOL, "Failed to remove '%s'\n", files[i]);
     }
 }
 
-static bool assemble_files(const Compiler *compiler, Context *context, char **files, const size_t file_count, char ***out_objects, size_t *out_objects_count) {
+static bool assemble_files(const Compiler *compiler, Context *context, char **files, const size_t *modules, const size_t file_count, char ***out_objects, size_t *out_objects_count) {
     *out_objects_count = 0;
     char **objs = malloc(file_count * sizeof(char *));
 
     for (size_t i = 0; i < file_count; i++) {
-        const Module *module = get_module(context, i);
+        const Module *module = get_module(context, modules[i]);
 
         if (module->builtin)
             continue;
 
-        if (!assemble_file(compiler, files[i], &objs[*out_objects_count], get_module(context, i))) {
-            remove_files(context, files, file_count);
+        if (!assemble_file(compiler, files[i], &objs[*out_objects_count], get_module(context, modules[i]))) {
+            remove_files(context, files, modules, file_count);
             cleanup(NULL, objs, NULL, *out_objects_count + 1, false);
             *out_objects = NULL;
             return false;
@@ -241,18 +244,18 @@ static bool assemble_files(const Compiler *compiler, Context *context, char **fi
     }
 
     if (!(compiler->options.flags & COMP_DEBUGINFO))
-        remove_files(context, files, file_count);
+        remove_files(context, files, modules, file_count);
 
     *out_objects = objs;
     return true;
 }
 
-static bool link_files(const Compiler *compiler, Context *context, char **files, const size_t file_count) {
+static bool link_files(const Compiler *compiler, Context *context, char **files, const size_t *modules, const size_t file_count) {
     char *str = calloc(1, sizeof(char));
     size_t str_len = 0;
 
     for (size_t i = 0; i < file_count; i++) {
-        if (get_module(context, i)->builtin)
+        if (get_module(context, modules[i])->builtin)
             continue;
 
         const size_t len = strlen(files[i]);
@@ -332,37 +335,42 @@ bool compile(Compiler *compiler) {
         return compile_only_main_to_markdown(compiler, &context);
 
     char **output_files = NULL;
+    size_t *output_modules = NULL;
     size_t output_file_count;
     AST **roots = NULL;
 
-    if (!compile_modules(compiler, &context, compiler->input_path, strlen(compiler->input_path), &output_files, &roots, &output_file_count)) {
+    if (!compile_modules(compiler, &context, compiler->input_path, strlen(compiler->input_path), &output_files, &output_modules, &roots, &output_file_count)) {
         log(ERROR_CRITICAL, compiler->input_path, LOG_NOLN, LOG_NOCOL,  "Failed to compile modules\n");
         cleanup(&context, NULL, NULL, 0, true);
+        free(output_modules);
         return false;
     }
 
     char **object_files = NULL;
     size_t object_file_count;
     
-    if (!assemble_files(compiler, &context, output_files, output_file_count, &object_files, &object_file_count)) {
+    if (!assemble_files(compiler, &context, output_files, output_modules, output_file_count, &object_files, &object_file_count)) {
         log(ERROR_CRITICAL, compiler->input_path, LOG_NOLN, LOG_NOCOL,  "Failed to assemble files\n");
         cleanup(NULL, object_files, NULL, object_file_count, false);
         cleanup(&context, output_files, roots, output_file_count, true);
+        free(output_modules);
         return false;
     }
 
     if (!(compiler->options.flags & COMP_OBJECT)) {
-        if (!link_files(compiler, &context, object_files, object_file_count)) {
+        if (!link_files(compiler, &context, object_files, output_modules, object_file_count)) {
             log(ERROR_CRITICAL, LOG_NOFILE, LOG_NOLN, LOG_NOCOL, "Failed to link files\n");
             cleanup(NULL, object_files, NULL, object_file_count, false);
             cleanup(&context, output_files, roots, output_file_count, true);
+            free(output_modules);
             return false;
         }
 
 
-        remove_files(&context, object_files, object_file_count);
+        remove_files(&context, object_files, output_modules, object_file_count);
     }
 
+    free(output_modules);
     cleanup(NULL, object_files, NULL, object_file_count, false);
     cleanup(&context, output_files, roots, output_file_count, true);
     return true;
