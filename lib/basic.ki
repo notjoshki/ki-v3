@@ -2,7 +2,7 @@
 // https://github.com/notjoshki/ki-v3
 
 import system;
-export #io, #memory, #strings, #debugging;
+export #io, #memory, #strings, #debugging, #math;
 
 // 17 pages of 4KiB = 65 Kib, 16 pages for data and 1 for the guard page.
 HEAP_SIZE: const 65536;
@@ -968,3 +968,122 @@ assert(condition: bool, error_message: &string) {
     println(error_message);
     exit(EXIT_FAILURE);
 }
+
+// Return the absolute value of an integer.
+#math
+abs(x: i64): i64 {
+    if x < 0 {
+        return -x;
+    }
+
+    return x;
+}
+
+// Return the absolute value of a float.
+#math
+fabs(x: f64): f64 {
+    if x < 0 {
+        return -x;
+    }
+
+    return x;
+}
+
+
+/*
+TODO: Convert this Ki v2 code to Ki v3.
+
+// Returns the absolute value of a number.
+@implicit_type_conversions
+pub fn abs(_x: f64): f64 {
+    if _x < 0 {
+        return _x * -1f;
+    }
+
+    return _x;
+}
+
+// Returns the power of a number to an exponent.
+// TODO: Negative exponents don't work :(
+@implicit_type_conversions
+pub fn pow(_base: f64, _exponent: u8): f64 {
+    _result: f64 = 1f;
+    _is_negative: bool = false;
+
+    if _exponent < 0 {
+        _is_negative = true;
+        _exponent *= -1f;
+    }
+
+    while _exponent > 0 {
+        if _exponent & 1 {
+            _result *= _base;
+        }
+
+        _base *= _base;
+        _exponent >>= 1;
+    }
+
+    if _is_negative {
+        return 1f / _result;
+    }
+
+    return _result;
+}
+
+// Returns the square root of a number.
+@implicit_type_conversions
+pub fn sqrt(_x: f64): f64 {
+    if _x < 0 {
+        return -1f;
+    }
+
+    _guess: f64 = _x / 2;
+    _epsilon: f64 = 0.00000000001;
+    _diff: f64;
+    _new_guess: f64 = 0f;
+
+    while _diff > _epsilon || _new_guess == 0 {
+        _new_guess = 0.5 * (_guess + _x / _guess);
+        _diff = _guess - _new_guess;
+
+        if _guess - _new_guess <= 0 {
+            _diff = -_diff;
+        }
+
+        _guess = _new_guess;
+    }
+
+    return _guess;
+}
+
+// Rounds a float down to the nearest integer.
+@implicit_type_conversions
+pub fn floor(_x: f64): i64 {
+    _integer: i64 = _x;
+
+    if _x < 0 && _x != _integer {
+        return _integer - 1;
+    }
+
+    return _integer;
+}
+
+// Rounds a float up to the nearest integer.
+@implicit_type_conversions
+pub fn ceil(_x: f64): i64 {
+    _integer: i64 = _x;
+
+    if _x > 0 && _x != _integer {
+        return _integer + 1;
+    }
+
+    return _integer;
+}
+
+// Truncates the decimal from a float.
+@implicit_type_conversions
+pub fn trunc(_x: f64): i64 {
+    return _x;
+}
+*/

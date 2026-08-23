@@ -747,15 +747,29 @@ static char *emit_math(State *state, LIR_Instruction *inst) {
 
     switch (inst->type) {
         case LIR_ADD:
-            if (is_float)
-                sprintf(code, "adds%c %s, %s\n", extension, dst, src);
-            else
+            if (is_float) {
+                if (inst->source.type == OPER_INT)
+                    sprintf(code, "mov %s, %s\n"
+                                  "cvtsi2s%c %s, %s\n"
+                                  "adds%c %s, %s\n", temporary_register(REGISTER_1, PRIM_I64), src, 
+                                  extension, temporary_register(REGISTER_3, dst_type), temporary_register(REGISTER_1, PRIM_I64),
+                                  extension, dst, temporary_register(REGISTER_3, dst_type));
+                else
+                    sprintf(code, "adds%c %s, %s\n", extension, dst, src);
+            } else
                 sprintf(code, "add %s, %s\n", dst, src);
             break;
         case LIR_SUB:
-            if (is_float)
+            if (is_float) {
+                if (inst->source.type == OPER_INT)
+                    sprintf(code, "mov %s, %s\n"
+                                  "cvtsi2s%c %s, %s\n"
+                                  "subs%c %s, %s\n", temporary_register(REGISTER_1, PRIM_I64), src, 
+                                  extension, temporary_register(REGISTER_3, dst_type), temporary_register(REGISTER_1, PRIM_I64),
+                                  extension, dst, temporary_register(REGISTER_3, dst_type));
+                else
                 sprintf(code, "subs%c %s, %s\n", extension, dst, src);
-            else
+            } else
                 sprintf(code, "sub %s, %s\n", dst, src);
             break;
         case LIR_MUL:
