@@ -2,11 +2,11 @@ using ki.basic;
 
 Point: struct {
     x: i32;
-    y: i32;
+    y: i32 = 3;
 }
 
 main() {
-    point := { .x = 1, .y = 2 }: Point;
+    point := { .x = 1 }: Point;
 
     points: Point[2];
     x := 1;

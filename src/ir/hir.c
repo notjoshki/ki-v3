@@ -517,16 +517,62 @@ static HIR_Data struct_initializer_to_hir_data(Context *context, AST *ast) {
     assert(type != NULL);
     data.struct_initializer.custom_type_symbol_uid = type->uid;
 
-    data.struct_initializer.values = malloc(ast->struct_initializer.values.count * sizeof(HIR_Data));
+    data.struct_initializer.values = malloc(type->member_count * sizeof(HIR_Data));
     data.struct_initializer.value_count = ast->struct_initializer.values.count;
-    data.struct_initializer.annotations = malloc(ast->struct_initializer.values.count * sizeof(char *));
-    data.struct_initializer.annotation_lengths = malloc(ast->struct_initializer.values.count * sizeof(size_t));
+    data.struct_initializer.annotations = malloc(type->member_count * sizeof(char *));
+    data.struct_initializer.annotation_lengths = malloc(type->member_count * sizeof(size_t));
+
+    // This would probably be fine on the stack in most cases but like idk don't wanna risk it.
+    size_t *filled_members = malloc(type->member_count * sizeof(size_t));
+    size_t filled_member_count = data.struct_initializer.value_count;
 
     for (size_t i = 0; i < ast->struct_initializer.values.count; i++) {
         data.struct_initializer.values[i] = ast_to_hir_data(context, (AST *)ast->struct_initializer.values.items[i]);
         data.struct_initializer.annotations[i] = ((AST *)ast->struct_initializer.annotations.items[i])->identifier.identifier;
         data.struct_initializer.annotation_lengths[i] = ((AST *)ast->struct_initializer.annotations.items[i])->identifier.length;
+
+        const Custom_Type_Member *member =find_custom_type_member(context, type->uid, data.struct_initializer.annotations[i],
+            data.struct_initializer.annotation_lengths[i]); 
+
+        assert(member != NULL);
+        filled_members[i] = member->uid;
     }
+
+    // Check for any default values.
+    for (size_t i = 0; i < type->member_count; i++) {
+        const Custom_Type_Member *member = &type->members[i];
+        bool is_filled = false;
+
+        if (i < data.struct_initializer.value_count) {
+            for (size_t j = 0; j < filled_member_count; j++) {
+                if (filled_members[j] == member->uid) {
+                    is_filled = true;
+                    break;
+                }
+            }
+        }
+        
+        if (is_filled || member->value == NULL)
+            continue;
+
+        data.struct_initializer.values[data.struct_initializer.value_count] = ast_to_hir_data(context, member->value);
+        data.struct_initializer.annotations[data.struct_initializer.value_count] = type->members[i].name;
+        data.struct_initializer.annotation_lengths[data.struct_initializer.value_count++] = type->members[i].name_length;
+        filled_members[filled_member_count++] = member->uid;
+    }
+
+    free(filled_members);
+
+    if (data.struct_initializer.value_count < type->member_count)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Missing values in struct initializer of type '%.*s'; expected %zu but found %zu\n", (int)type->name_length, type->name, 
+            type->member_count, data.struct_initializer.value_count);
+    else if (data.struct_initializer.value_count > type->member_count)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Excessive values in struct initializer of type '%.*s'; expected %zu but found %zu\n", (int)type->name_length, type->name, 
+            type->member_count, data.struct_initializer.value_count);
+    else
+        data.struct_initializer.value_count = type->member_count;
 
     return data;
 }
@@ -646,6 +692,15 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
             "Illegal declaration type '%s'\n", str);
         free(str);
         ast->declaration.data_type = create_data_type(PRIM_INFER, 0);
+    }
+
+    if (ast->declaration.value == NULL && ast->declaration.data_type.primitive_type == PRIM_CUSTOM && 
+            ast->declaration.data_type.pointer_count == 0 && ast->declaration.data_type.array_size == 0) {
+        AST *init = new_ast(AST_STRUCT_INITIALIZER, ast_location(ast), ast->uid);
+        init->struct_initializer.values = create_list(sizeof(AST *));
+        init->struct_initializer.annotations = create_list(sizeof(AST *));
+        init->struct_initializer.data_type = copy_data_type(&ast->declaration.data_type);
+        ast->declaration.value = init;
     }
 
     hir.declaration.value = ast_to_hir_data(context, ast->declaration.value);

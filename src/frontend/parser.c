@@ -1333,9 +1333,6 @@ static AST *parse_struct_initializer(Parser *parser) {
 
     eat(parser, TOK_RBRACE);
 
-    if (ast->struct_initializer.values.count == 0)
-        log(ERROR_CRITICAL, parser->source.path, ast->source.ln, ast->source.col, "Empty struct initializer\n");
-
     eat(parser, TOK_COLON);
     ast->struct_initializer.data_type = parse_data_type(parser);
     return ast;
