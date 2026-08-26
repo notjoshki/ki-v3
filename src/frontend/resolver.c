@@ -290,10 +290,30 @@ static void resolve_parameter(Context *context, AST *ast) {
 }
 
 static void resolve_math(Context *context, AST *ast) {
+    bool is_float = false;
+    bool has_bitwise = false;
+
     for (size_t i = 0; i < ast->math.nodes.count; i++) {
-        if (i % 2 == 0) // Skip operators.
-            resolve_value(context, (AST **)&ast->math.nodes.items[i]);
+        if (i % 2 != 0 && !has_bitwise) {
+            const AST *node = ast->math.nodes.items[i];
+            
+            if (node->operator.type >= TOK_AND && node->operator.type <= TOK_SHR)
+                has_bitwise =  true;
+
+            continue;
+        }
+
+        resolve_value(context, (AST **)&ast->math.nodes.items[i]);
+        AST *item = ast->math.nodes.items[i];
+        const Data_Type dt = get_ast_data_type(context, item);
+
+        if (dt_is_float(dt))
+            is_float = true;
     }
+
+    if (is_float && has_bitwise)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Mixing float values with bitwise operators is forbidden\n");
 }
 
 static void resolve_condition(Context *context, AST *ast) {
@@ -516,6 +536,19 @@ static void resolve_struct_initializer(Context *context, AST *ast) {
     }
 }
 
+static void resolve_array_initializer(Context *context, AST *ast) {
+    resolve_data_type(context, &ast->array_initializer.data_type, &ast->source, ast->module_uid);
+
+    for (size_t i = 0; i < ast->array_initializer.values.count; i++) {
+        resolve_value(context, (AST **)&ast->array_initializer.values.items[i]);
+
+        if (i == 0) {
+            ast->array_initializer.data_type = get_ast_data_type(context, ast->array_initializer.values.items[i]);
+            ast->array_initializer.data_type.array_size++;
+        }
+    }
+}
+
 static void resolve_value(Context *context, AST **ast) {
     // We need an AST** here because we may need to reassign its dereferenced value
     // after it gets resolved, e.g variables and enums.
@@ -573,6 +606,9 @@ static void resolve_value(Context *context, AST **ast) {
             break;
         case AST_STRUCT_INITIALIZER:
             resolve_struct_initializer(context, *ast);
+            break;
+        case AST_ARRAY_INITIALIZER:
+            resolve_array_initializer(context, *ast);
             break;
         default:
             log(ERROR_CRITICAL, (*ast)->source.path, (*ast)->source.ln, (*ast)->source.col,
@@ -684,6 +720,17 @@ static void resolve_function(Context *context, AST *ast) {
 
 }
 
+static void check_array_initializer_count(const Source *source, const Data_Type lhs_type, AST *rhs) {
+    if (lhs_type.array_size == 0) {
+        char *dt_str = data_type_to_string(&lhs_type);
+        log(ERROR_CRITICAL, source->path, source->ln, source->col,
+            "Assigning array initializer to non-array LHS of type '%s'\n", dt_str);
+        free(dt_str);
+    } else if (rhs->array_initializer.values.count != lhs_type.array_size)
+        log(ERROR_CRITICAL, source->path, source->ln, source->col,
+            "Assigning array intializer of size %zu to LHS of size %zu\n", rhs->array_initializer.values.count, lhs_type.array_size);
+}
+
 static void resolve_declaration(Context *context, AST *ast) {
     Symbol *sym = find_symbol(context, SYMBOL_VARIABLE, ast->declaration.name, ast->declaration.name_length, 
         &ast->scope, ast->module_uid);
@@ -713,11 +760,19 @@ static void resolve_declaration(Context *context, AST *ast) {
         Data_Type dt = get_ast_data_type(context, ast->declaration.value);
         ast->declaration.data_type = copy_data_type(&dt);
     }
+
+    if (ast->declaration.value == NULL || ast->declaration.value->type != AST_ARRAY_INITIALIZER)
+        return;
+
+    check_array_initializer_count(&ast->source, ast->declaration.data_type, ast->declaration.value);
 }
 
 static void resolve_assignment(Context *context, AST *ast) {
     resolve_value(context, &ast->assignment.lhs);
     resolve_value(context, &ast->assignment.rhs);
+
+    if (ast->assignment.rhs->type == AST_ARRAY_INITIALIZER)
+        check_array_initializer_count(&ast->source, get_ast_data_type(context, ast->assignment.lhs), ast->assignment.rhs);
 }
 
 static void resolve_asm(Context *context, AST *ast) {

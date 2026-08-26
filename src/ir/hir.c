@@ -118,6 +118,13 @@ static void delete_data(HIR_Data *data) {
             free(data->struct_initializer.annotation_lengths);
             delete_data_type(&data->struct_initializer.data_type);
             break;
+        case DATA_ARRAY_INITIALIZER:
+            for (size_t i = 0; i < data->array_initializer.value_count; i++)
+                delete_data(&data->array_initializer.values[i]);
+
+            free(data->array_initializer.values);
+            delete_data_type(&data->array_initializer.data_type);
+            break;
         default: break;
     }
 }
@@ -524,6 +531,20 @@ static HIR_Data struct_initializer_to_hir_data(Context *context, AST *ast) {
     return data;
 }
 
+static HIR_Data array_initializer_to_data(Context *context, AST *ast) {
+    HIR_Data data = create_data(DATA_ARRAY_INITIALIZER);
+    Data_Type dt = copy_data_type(&ast->array_initializer.data_type);
+    data.array_initializer.data_type = dt;
+
+    data.array_initializer.values = malloc(ast->array_initializer.values.count * sizeof(HIR_Data));
+    data.array_initializer.value_count = ast->array_initializer.values.count;
+
+    for (size_t i = 0; i < ast->array_initializer.values.count; i++)
+        data.array_initializer.values[i] = ast_to_hir_data(context, (AST *)ast->array_initializer.values.items[i]);
+
+    return data;
+}
+
 static HIR_Data ast_to_hir_data(Context *context, AST *ast) {
     if (ast == NULL)
         return nodat;
@@ -552,6 +573,7 @@ static HIR_Data ast_to_hir_data(Context *context, AST *ast) {
         case AST_NULL: return null_to_hir_data();
         case AST_BOOL: return bool_to_hir_data(ast);
         case AST_STRUCT_INITIALIZER: return struct_initializer_to_hir_data(context, ast);
+        case AST_ARRAY_INITIALIZER: return array_initializer_to_data(context, ast);
         default: break;
     }
 
@@ -628,9 +650,17 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
 
     hir.declaration.value = ast_to_hir_data(context, ast->declaration.value);
 
-    if (ast->declaration.value != NULL)
-        check_data_types_are_compatible(context, &ast->source, ast->module_uid, 
-            hir.declaration.data_type, get_hir_data_type(context, &hir.declaration.value));
+    if (ast->declaration.value != NULL) {
+        Data_Type expected = hir.declaration.data_type;
+        Data_Type received = get_hir_data_type(context, &hir.declaration.value);
+
+        if (ast->declaration.value->type == AST_ARRAY_INITIALIZER) {
+            assert(received.array_size > 0);
+            received.array_size = expected.array_size = 0;
+        }
+
+        check_data_types_are_compatible(context, &ast->source, ast->module_uid, expected, received);
+    }
 
     hir.declaration.variable_uid = ast->declaration.variable_uid;
     return hir;
@@ -641,8 +671,22 @@ static HIR assignment_to_hir(Context *context, AST *ast) {
     hir.assignment.lhs = ast_to_hir_data(context, ast->assignment.lhs);
     hir.assignment.rhs = ast_to_hir_data(context, ast->assignment.rhs);
 
-    check_data_types_are_compatible(context, &ast->source, ast->module_uid,
-        get_hir_data_type(context, &hir.assignment.lhs), get_hir_data_type(context, &hir.assignment.rhs));
+    HIR_Data *lhs = &hir.assignment.lhs;
+    HIR_Data *rhs = &hir.assignment.rhs;
+
+    if (rhs->type != DATA_ARRAY_INITIALIZER) { 
+        check_data_types_are_compatible(context, &ast->source, ast->module_uid,
+            get_hir_data_type(context, lhs), get_hir_data_type(context, rhs));
+        return hir;
+    }
+    
+    Data_Type received = get_hir_data_type(context, rhs);
+    Data_Type expected = get_hir_data_type(context, lhs);
+
+    assert(received.array_size > 0);
+    received.array_size = expected.array_size = 0;
+
+    check_data_types_are_compatible(context, &ast->source, ast->module_uid, expected, received);
     return hir;
 }
 
@@ -913,6 +957,7 @@ char *hir_data_type_to_string(const HIR_Data_Type type) {
         case DATA_DEREFERENCE: return "dereference";
         case DATA_STRUCT_MEMBER: return "struct member";
         case DATA_STRUCT_INITIALIZER: return "struct initializer";
+        case DATA_ARRAY_INITIALIZER: return "array initializer";
         default:
             assert(false);
             return "<none>";
@@ -960,6 +1005,11 @@ Data_Type get_hir_data_type(Context *context, const HIR_Data *data) {
             return member->data_type;
         }
         case DATA_STRUCT_INITIALIZER: return data->struct_initializer.data_type;
+        case DATA_ARRAY_INITIALIZER: {
+            Data_Type dt = copy_data_type(&data->array_initializer.data_type);
+            dt.array_size = data->array_initializer.value_count;
+            return dt;
+        }
         default:
             assert(false);
             return NO_DATA_TYPE;

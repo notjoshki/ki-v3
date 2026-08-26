@@ -616,6 +616,57 @@ static void store_struct_initializer(LIR *lir, HIR_Data *lhs, HIR_Data *rhs) {
     }
 }
 
+static void push_struct_member_assignment(LIR *lir, HIR *hir) {
+    LIR_Operand struct_ptr = struct_member_to_operand(lir, &hir->assignment.lhs, false);
+    push_load(lir, t1(struct_ptr.data_type), struct_ptr);
+
+    const HIR_Data *lhs = &hir->assignment.lhs;
+    Data_Type dt = get_custom_type_member(lir->context, lhs->struct_member.custom_type_symbol_uid, lhs->struct_member.member_symbol_uid)->data_type;
+    //hir->assignment.lhs.struct_member.member_symbol->data_type;
+
+    if (!is_complex_expression(&hir->assignment.rhs)) {
+        push_load(lir, t2(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
+        push_instruction(lir, LIR_STORE, lir_pointer(dt, T1_REGISTER_NUMBER), t2(dt));
+        return;
+    }
+
+    push_instruction(lir, LIR_PUSH, nop, t1(struct_ptr.data_type));
+    push_load(lir, t1(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
+    push_instruction(lir, LIR_POP, t2(struct_ptr.data_type), nop);
+    push_instruction(lir, LIR_STORE, lir_pointer(dt, T2_REGISTER_NUMBER), t1(dt));
+}
+
+static void push_array_initializer_assignment(LIR *lir, HIR_Data *lhs, HIR_Data *rhs) {
+    Data_Type array_type = get_hir_data_type(lir->context, lhs);
+    Data_Type item_type = copy_data_type(&array_type);
+    assert(array_type.array_size > 0);
+    // The backend only sees the pointer_count, disregards array_size.
+    array_type.array_size = item_type.array_size = 0;
+    array_type.pointer_count++;
+
+    for (size_t i = 0; i < rhs->array_initializer.value_count; i++) {
+        HIR_Data *value = &rhs->array_initializer.values[i];
+
+        if (!is_complex_expression(value)) {
+            push_load(lir, t1(array_type), hir_data_to_operand(lir, lhs));
+            push_instruction(lir, LIR_ADD, t1(array_type), (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_USIZE, 0), 
+                .int_.u64 = (uint64_t)primitive_type_to_size(data_type_to_primitive_type(&item_type)) * i });
+            push_load(lir, t2(item_type), hir_data_to_operand(lir, value));
+            push_instruction(lir, LIR_STORE, lir_pointer(item_type, T1_REGISTER_NUMBER), t2(item_type));
+            continue;
+        }
+
+        push_load(lir, t1(array_type), hir_data_to_operand(lir, lhs));
+        push_instruction(lir, LIR_ADD, t1(array_type), (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_USIZE, 0), 
+            .int_.u64 = (uint64_t)primitive_type_to_size(data_type_to_primitive_type(&item_type)) * i });
+        push_instruction(lir, LIR_PUSH, nop, t1(array_type));
+
+        push_load(lir, t1(item_type), hir_data_to_operand(lir, value));
+        push_instruction(lir, LIR_POP, t2(array_type), nop);
+        push_instruction(lir, LIR_STORE, lir_pointer(item_type, T2_REGISTER_NUMBER), t1(item_type));
+    }
+}
+
 static void push_declaration(LIR *lir, HIR *hir) {
     LIR_Operand var = lir_local_variable(hir->declaration.data_type, hir->declaration.uid, hir->declaration.variable_uid, false);
 
@@ -630,6 +681,15 @@ static void push_declaration(LIR *lir, HIR *hir) {
             .uid = hir->declaration.uid, .variable_uid = hir->declaration.variable_uid
         } };
         store_struct_initializer(lir, &hir_var, &hir->declaration.value);
+        return;
+    } else if (hir->declaration.value.type == DATA_ARRAY_INITIALIZER) {
+        push_instruction(lir, LIR_STORE, var, nop);
+
+        HIR_Data hir_var = (HIR_Data){ .type = DATA_LOCAL_VARIABLE, .local_variable = {
+            .data_type = hir->declaration.data_type, .name = hir->declaration.name, .name_length = hir->declaration.name_length,
+            .uid = hir->declaration.uid, .variable_uid = hir->declaration.variable_uid
+        } };
+        push_array_initializer_assignment(lir, &hir_var, &hir->declaration.value);
         return;
     }
 
@@ -695,26 +755,6 @@ static void push_pointer_assignment(LIR *lir, HIR *hir) {
     push_instruction(lir, LIR_STORE, lir_pointer(lhs_type, T2_REGISTER_NUMBER), t1(lhs_type));
 }
 
-static void push_struct_member_assignment(LIR *lir, HIR *hir) {
-    LIR_Operand struct_ptr = struct_member_to_operand(lir, &hir->assignment.lhs, false);
-    push_load(lir, t1(struct_ptr.data_type), struct_ptr);
-
-    const HIR_Data *lhs = &hir->assignment.lhs;
-    Data_Type dt = get_custom_type_member(lir->context, lhs->struct_member.custom_type_symbol_uid, lhs->struct_member.member_symbol_uid)->data_type;
-    //hir->assignment.lhs.struct_member.member_symbol->data_type;
-
-    if (!is_complex_expression(&hir->assignment.rhs)) {
-        push_load(lir, t2(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
-        push_instruction(lir, LIR_STORE, lir_pointer(dt, T1_REGISTER_NUMBER), t2(dt));
-        return;
-    }
-
-    push_instruction(lir, LIR_PUSH, nop, t1(struct_ptr.data_type));
-    push_load(lir, t1(dt), hir_data_to_operand(lir, &hir->assignment.rhs));
-    push_instruction(lir, LIR_POP, t2(struct_ptr.data_type), nop);
-    push_instruction(lir, LIR_STORE, lir_pointer(dt, T2_REGISTER_NUMBER), t1(dt));
-}
-
 static void push_assignment(LIR *lir, HIR *hir) {
     if (hir->assignment.lhs.type == DATA_INDEX || hir->assignment.lhs.type == DATA_DEREFERENCE) {
         push_pointer_assignment(lir, hir);
@@ -724,6 +764,9 @@ static void push_assignment(LIR *lir, HIR *hir) {
         return;
     } else if (hir->assignment.rhs.type == DATA_STRUCT_INITIALIZER) {
         store_struct_initializer(lir, &hir->assignment.lhs, &hir->assignment.rhs);
+        return;
+    } else if (hir->assignment.rhs.type == DATA_ARRAY_INITIALIZER) {
+        push_array_initializer_assignment(lir, &hir->assignment.lhs, &hir->assignment.rhs);
         return;
     }
 

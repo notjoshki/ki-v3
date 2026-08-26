@@ -29,7 +29,8 @@ typedef enum {
     DATA_CAST,
     DATA_DEREFERENCE,
     DATA_STRUCT_MEMBER,
-    DATA_STRUCT_INITIALIZER
+    DATA_STRUCT_INITIALIZER,
+    DATA_ARRAY_INITIALIZER
 } HIR_Data_Type;
 
 typedef struct HIR_Data HIR_Data;
@@ -127,6 +128,12 @@ typedef struct {
     size_t custom_type_symbol_uid;
 } HIR_Data_Struct_Initializer;
 
+typedef struct {
+    HIR_Data *values;
+    size_t value_count;
+    Data_Type data_type;
+} HIR_Data_Array_Initializer;
+
 struct HIR_Data {
     HIR_Data_Type type;
     size_t scope_uid;
@@ -145,6 +152,7 @@ struct HIR_Data {
         HIR_Data_Dereference dereference;
         HIR_Data_Struct_Member struct_member;
         HIR_Data_Struct_Initializer struct_initializer;
+        HIR_Data_Array_Initializer array_initializer;
     };
 };
 

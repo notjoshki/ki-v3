@@ -27,7 +27,7 @@
 #define TOKEN_CAPACITY 8
 #define EXPORT_IDENTIFIER_CAPACITY 4
 #define IMPORT_PATH_CAPACITY 8
-#define SYNC_TOKEN_CAPACITY 16
+#define SYNC_TOKEN_CAPACITY 17
 
 #define PARSER_NO_FLAGS 0
 #define PARSER_NO_LEADING_VALUES 0x01
@@ -159,6 +159,7 @@ static void skip_to_next_statement(Parser *parser) {
         sync_tokens[count++] = TOK_AND;
         sync_tokens[count++] = TOK_OR;
         sync_tokens[count++] = TOK_XOR;
+        sync_tokens[count++] = TOK_RSQUARE;
     } else {
         sync_tokens[count++] = TOK_RBRACE;
         sync_tokens[count++] = TOK_SEMICOLON;
@@ -1340,6 +1341,28 @@ static AST *parse_struct_initializer(Parser *parser) {
     return ast;
 }
 
+static AST *parse_array_initializer(Parser *parser) {
+    AST *ast = new_ast(AST_ARRAY_INITIALIZER, new_ast_arguments);
+    ast->array_initializer.values = create_list(sizeof(AST *));
+    ast->array_initializer.data_type = create_data_type(PRIM_VOID, 1);
+
+    eat(parser, TOK_LSQUARE);
+
+    while (this_token->type != TOK_EOF && this_token->type != TOK_RSQUARE) {
+        if (ast->array_initializer.values.count > 0) {
+            eat(parser, TOK_COMMA);
+
+            if (this_token->type == TOK_EOF || this_token->type == TOK_RSQUARE)
+                break;
+        }
+
+        push_item(&ast->array_initializer.values, parse_value(parser));
+    }
+
+    eat(parser, TOK_RSQUARE);
+    return ast;
+}
+
 static AST *parse(Parser *parser) {
     AST *stmt;
 
@@ -1386,6 +1409,9 @@ static AST *parse(Parser *parser) {
             break;
         case TOK_LBRACE:
             stmt = parse_struct_initializer(parser);
+            break;
+        case TOK_LSQUARE:
+            stmt = parse_array_initializer(parser);
             break;
         default:
             log(ERROR_CRITICAL, parser->source.path, this_token->ln, this_token->col,

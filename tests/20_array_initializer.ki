@@ -1,0 +1,11 @@
+main() {
+    a := 2;
+    c: u8 = 'C';
+    x := 1.2f;
+    data: i32[4] = [0, 1, 2, 3];
+    data = [1, a, c * cast(i64 x) << 2, get(1, 2)];
+}
+
+get(x: i8, y: u16): f64 {
+    return 5.5;
+}

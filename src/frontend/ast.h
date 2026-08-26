@@ -60,7 +60,8 @@ typedef enum {
     AST_NULL,
     AST_BOOL,
     AST_STRUCT_INITIALIZER,
-    AST_STRUCT_NAME
+    AST_STRUCT_NAME,
+    AST_ARRAY_INITIALIZER
 } AST_Type;
 
 typedef struct AST AST;
@@ -327,6 +328,11 @@ typedef struct {
     size_t symbol_uid;
 } AST_Struct_Name;
 
+typedef struct {
+    List values;
+    Data_Type data_type;
+} AST_Array_Initializer;
+
 struct AST {
     AST_Type type;
     Scope scope;
@@ -378,6 +384,7 @@ struct AST {
         bool bool_value;
         AST_Struct_Intializer struct_initializer;
         AST_Struct_Name struct_name;
+        AST_Array_Initializer array_initializer;
     };
 };
 

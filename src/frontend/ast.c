@@ -187,6 +187,10 @@ void delete_ast(AST *ast) {
         case AST_STRUCT_NAME:
             free(ast->struct_name.name);
             break;
+        case AST_ARRAY_INITIALIZER:
+            delete_ast_list(&ast->array_initializer.values);
+            delete_data_type(&ast->array_initializer.data_type);
+            break;
         default: break;
     }
 
@@ -243,6 +247,7 @@ char *ast_type_to_string(const AST_Type type) {
         case AST_BOOL: return "boolean";
         case AST_STRUCT_INITIALIZER: return "struct initializer";
         case AST_STRUCT_NAME: return "struct";
+        case AST_ARRAY_INITIALIZER: return "array initializer";
         default:
             assert(false);
             return "<none>";
@@ -318,6 +323,12 @@ Data_Type get_ast_data_type(Context *context, AST *ast) {
             dt.custom_name = type->name;
             dt.custom_length = type->name_length;
             dt.module_uid = type->module_uid;
+            return dt;
+        }
+        case AST_ARRAY_INITIALIZER: {
+            Data_Type dt = copy_data_type(&ast->array_initializer.data_type);
+            assert(dt.array_size > 0);
+            dt.array_size = 0;
             return dt;
         }
         default:
