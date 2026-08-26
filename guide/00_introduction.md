@@ -32,7 +32,7 @@ Test to make sure it installed properly by running ```ki --version``` which shou
 
 ## Hello World!
 
-Now that you have the compiler installed and working properly, it's time for sacred hello world ritual. Create a file called ```main.ki``` and copy the following code into it:
+Now that you have the compiler installed and working properly, it's time for the sacred hello world ritual. Create a file called ```main.ki``` and copy the following code into it:
 
 ```rs
 main() {
