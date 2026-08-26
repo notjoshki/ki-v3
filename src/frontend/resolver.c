@@ -292,6 +292,7 @@ static void resolve_parameter(Context *context, AST *ast) {
 static void resolve_math(Context *context, AST *ast) {
     bool is_float = false;
     bool has_bitwise = false;
+    bool has_modulo = false;
 
     for (size_t i = 0; i < ast->math.nodes.count; i++) {
         if (i % 2 != 0 && !has_bitwise) {
@@ -299,6 +300,8 @@ static void resolve_math(Context *context, AST *ast) {
             
             if (node->operator.type >= TOK_AND && node->operator.type <= TOK_SHR)
                 has_bitwise =  true;
+            else if (node->operator.type == TOK_PERCENT)
+                has_modulo =  true;
 
             continue;
         }
@@ -311,9 +314,16 @@ static void resolve_math(Context *context, AST *ast) {
             is_float = true;
     }
 
-    if (is_float && has_bitwise)
+    if (!is_float)
+        return;
+
+    if (has_bitwise)
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
             "Mixing float values with bitwise operators is forbidden\n");
+
+    if (has_modulo)
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Mixing float values with modulo is forbidden\n");
 }
 
 static void resolve_condition(Context *context, AST *ast) {
@@ -786,6 +796,25 @@ static void resolve_asm(Context *context, AST *ast) {
 static void resolve_compound_math(Context *context, AST *ast) {
     resolve_value(context, &ast->compound_math.lhs);
     resolve_value(context, &ast->compound_math.rhs);
+
+    const bool is_modulo = ast->compound_math.type == TOK_PERCENT;
+    const bool is_bitwise = ast->compound_math.type >= TOK_AND && ast->compound_math.type <= TOK_SHR;
+
+    if (!is_modulo && !is_bitwise)
+        return;
+
+    Data_Type lhs_type = get_ast_data_type(context, ast->compound_math.lhs);
+    Data_Type rhs_type = get_ast_data_type(context, ast->compound_math.rhs);
+
+    if (dt_is_float(lhs_type) || dt_is_float(rhs_type)) {
+        if (is_bitwise)
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Mixing float values with bitwise operators is forbidden\n");
+
+        if (is_modulo)
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Mixing float values with modulo is forbidden\n");
+    }
 }
 
 static void resolve_call_arguments(Context *context, AST *ast) {
