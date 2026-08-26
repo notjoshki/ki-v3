@@ -21,7 +21,7 @@ Now you should be ready to build the compiler from source. If you don't already,
 Follow the below commands to use git to fetch the source code from github and build the compiler using the makefile:
 
 ```
-$ git clone https://notjoshki/ki-v3.git
+$ git clone https://github.com/notjoshki/ki-v3.git
 $ cd ki-v3
 $ sudo make install
 ```
