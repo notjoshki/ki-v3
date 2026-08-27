@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#define TAG "0.1.0-alpha"
+#define TAG "0.1.1-alpha"
 
 #define VERSION "ki-v3 build " TAG "\n"
 
