@@ -36,16 +36,47 @@ static inline char extension_type_to_char(const Primitive_Type primitive_type) {
     return bin_is_unsigned(primitive_type) ? 'z' : 's';
 }
 
-size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const Module *module) {
-    Custom_Type *type = find_custom_type(context, CUST_STRUCT, data_type->custom_name, data_type->custom_length, 
-        data_type->module_name != NULL ? (size_t)data_type->module_uid : (module == NULL ? 0 : module->uid));
-
-    assert(type != NULL);
+/*
+static size_t packed_struct_to_size(const Custom_Type *type) {
     size_t size = 0;
 
     for (size_t i = 0; i < type->member_count; i++)
         size += primitive_type_to_size(data_type_to_primitive_type(&type->members[i].data_type))
             * (type->members[i].data_type.array_size == 0 ? 1 : type->members[i].data_type.array_size);
+
+    return size;
+}
+*/
+
+size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const Module *module) {
+    Custom_Type *type = find_custom_type(context, CUST_STRUCT, data_type->custom_name, data_type->custom_length, 
+        data_type->module_name != NULL ? (size_t)data_type->module_uid : (module == NULL ? 0 : module->uid));
+
+    assert(type != NULL);
+    const bool is_packed = type->flags & DECOR_PACKED_STRUCT;
+
+    size_t size = 0;
+
+    for (size_t i = 0; i < type->member_count; i++) {
+        const Primitive_Type member_type = data_type_to_primitive_type(&type->members[i].data_type);
+        const size_t member_size = primitive_type_to_size(member_type)
+            * (type->members[i].data_type.array_size == 0 ? 1 : type->members[i].data_type.array_size);
+
+        if (is_packed) {
+            size += member_size;
+            continue;
+        }
+
+        const size_t member_byte_size = primitive_type_to_size(member_type);
+
+        while (size % member_byte_size != 0)
+            size++;
+
+        size += member_size;
+    }
+
+    while (size % 4 != 0)
+        size++;
 
     return size;
 }

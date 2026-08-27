@@ -858,7 +858,7 @@ static AST *parse_keyword(Parser *parser) {
     return err;
 }
 
-static AST *parse_custom_type(Parser *parser, const bool is_enum, AST *group) {
+static AST *parse_custom_type(Parser *parser, const bool is_enum, List decorators, AST *group) {
     AST *ast = new_ast(AST_CUSTOM_TYPE, new_ast_arguments);
     char *name = copy_string(this_token->value, this_token->length);
     size_t length = this_token->length;
@@ -866,7 +866,7 @@ static AST *parse_custom_type(Parser *parser, const bool is_enum, AST *group) {
     ast->custom_type.name_length = length;
 
     Custom_Type *type = new_custom_type(parser->context, is_enum ? CUST_ENUM : CUST_STRUCT,
-        &parser->source, parser->current_module_uid, name, length, group == NULL ? NO_SECTION : group->group.group_uid);
+        &parser->source, parser->current_module_uid, name, length, decorators, group == NULL ? NO_SECTION : group->group.group_uid);
 
     step(parser);
     step(parser);
@@ -937,9 +937,9 @@ static AST *parse_declaration(Parser *parser, AST *group) {
     const Token *next2 = peek(parser, 2);
 
     if (compare_string(next2->value, next2->length, "enum", 4))
-        return parse_custom_type(parser, true, group);
+        return parse_custom_type(parser, true, create_list(sizeof(AST *)), group);
     else if (compare_string(next2->value, next2->length, "struct", 6))
-        return parse_custom_type(parser, false, group);
+        return parse_custom_type(parser, false, create_list(sizeof(AST *)), group);
     else if (compare_string(next2->value, next2->length, "alias", 5))
         return parse_alias(parser, group);
     else if (compare_string(next2->value, next2->length, "const", 5))
@@ -1219,6 +1219,11 @@ static AST *parse_decorator_preceded_function(Parser *parser, AST *group, List d
 
     if (this_token->type == TOK_HASHTAG)
         return parse_group_preceded_statement(parser, decorators);
+
+    if (peek(parser, 1)->type == TOK_COLON) {
+        const Token *next2 = peek(parser, 2);
+        return parse_custom_type(parser, compare_string(next2->value, next2->length, "enum", 4), decorators, group);
+    }
 
     return parse_function(parser, decorators, group);
 }

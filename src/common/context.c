@@ -42,12 +42,15 @@ static void delete_custom_type(Custom_Type *type) {
 
         if (member->value != NULL)
             delete_ast(member->value);
+
     }
 
     free(type->members);
 
     if (type->type == CUST_ENUM)
         delete_data_type(&type->enum_data_type);
+
+    delete_ast_list(&type->decorators);
 }
 
 void delete_context(Context *context, const bool free_modules) {
@@ -85,15 +88,15 @@ void delete_context(Context *context, const bool free_modules) {
     free(context->modules);
 }
 
-Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, size_t group_uid) {
+Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, List decorators, size_t group_uid) {
     if (context->custom_type_count + 1 >= context->custom_type_capacity) {
         context->custom_type_capacity *= 2;
         context->custom_types = realloc(context->custom_types, context->custom_type_capacity * sizeof(Custom_Type));
     }
 
     context->custom_types[context->custom_type_count] = 
-        (Custom_Type){ .uid = context->custom_type_count, .type = type, .source = *source, .module_uid = module_uid,
-            .name = name, .name_length = length, .members = malloc(MEMBER_CAPACITY * sizeof(Custom_Type_Member)),
+        (Custom_Type){ .uid = context->custom_type_count, .type = type, .source = *source, .module_uid = module_uid, .decorators = decorators,
+            .name = name, .name_length = length, .members = malloc(MEMBER_CAPACITY * sizeof(Custom_Type_Member)), .flags = 0,
             .member_count = 0, .member_capacity = MEMBER_CAPACITY, .resolved = false, .exported = false, .group_uid = group_uid };
 
     return &context->custom_types[context->custom_type_count++];
@@ -413,7 +416,7 @@ AST *get_group(Context *context, const size_t index) {
 }
 
 void push_builtin_data(Context *context, AST *root) {
-    Custom_Type *str = new_custom_type(context, CUST_STRUCT, &root->source, root->module_uid, copy_string("string", 6), 6, NO_SECTION);
+    Custom_Type *str = new_custom_type(context, CUST_STRUCT, &root->source, root->module_uid, copy_string("string", 6), 6, create_list(sizeof(AST *)), NO_SECTION);
 
     push_custom_type_member(context, str->uid, &root->source, 
         copy_string("capacity", 8), 8, create_data_type(PRIM_USIZE, 0), NULL);

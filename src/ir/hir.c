@@ -696,11 +696,28 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
 
     if (ast->declaration.value == NULL && ast->declaration.data_type.primitive_type == PRIM_CUSTOM && 
             ast->declaration.data_type.pointer_count == 0 && ast->declaration.data_type.array_size == 0) {
-        AST *init = new_ast(AST_STRUCT_INITIALIZER, ast_location(ast), ast->uid);
-        init->struct_initializer.values = create_list(sizeof(AST *));
-        init->struct_initializer.annotations = create_list(sizeof(AST *));
-        init->struct_initializer.data_type = copy_data_type(&ast->declaration.data_type);
-        ast->declaration.value = init;
+        // We only want to implicitly initialize the struct if it has any default values.
+        Custom_Type *type = find_custom_type(context, CUST_STRUCT, ast->declaration.data_type.custom_name,
+            ast->declaration.data_type.custom_length, ast->declaration.data_type.module_uid == -1 ? ast->module_uid : (size_t)ast->declaration.data_type.module_uid);
+        assert(type != NULL);
+        bool has_default = false;
+
+        for (size_t i = 0; i < type->member_count; i++) {
+            const Custom_Type_Member *member = &type->members[i];
+
+            if (member->value != NULL) {
+                has_default = true;
+                break;
+            }
+        }
+
+        if (has_default) {
+            AST *init = new_ast(AST_STRUCT_INITIALIZER, ast_location(ast), ast->uid);
+            init->struct_initializer.values = create_list(sizeof(AST *));
+            init->struct_initializer.annotations = create_list(sizeof(AST *));
+            init->struct_initializer.data_type = copy_data_type(&ast->declaration.data_type);
+            ast->declaration.value = init;
+        }
     }
 
     hir.declaration.value = ast_to_hir_data(context, ast->declaration.value);

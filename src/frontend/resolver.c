@@ -53,6 +53,27 @@ static void replace_identifier_if_aliased(Context *context, char **identifier, s
 
 static void resolve_value(Context *context, AST **ast);
 
+static void resolve_decorator(AST *ast, size_t *flags) {
+    if (compare_string(ast->decorator.name, ast->declaration.name_length, "ignore_missing_return", 21))
+        *flags |= DECOR_IGNORE_MISSING_RETURN;
+    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "onetime_arguments", 17))
+        *flags |= DECOR_ONETIME_ARGUMENTS;
+    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "omit_frame_pointer", 18))
+        *flags |= DECOR_OMIT_FRAME_POINTER;
+    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "extern", 6))
+        *flags |= DECOR_EXTERN_FUNCTION;
+    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "packed", 6))
+        *flags |= DECOR_PACKED_STRUCT;
+    else
+        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+            "Undefined decorator '%.*s'\n", (int)ast->decorator.name_length, ast->decorator.name);
+}
+
+static void resolve_decorators(List *decorators, size_t *flags) {
+    for (size_t i = 0; i < decorators->count; i++)
+        resolve_decorator((AST *)decorators->items[i], flags);
+}
+
 static void resolve_data_type_array_size(Context *context, Data_Type *data_type) {
     resolve_value(context, &data_type->unresolved_array_size);
     AST *size = data_type->unresolved_array_size;
@@ -98,16 +119,20 @@ static void resolve_data_type(Context *context, Data_Type *data_type, const Sour
     replace_identifier_if_aliased(context, &data_type->custom_name, &data_type->custom_length, 
         module_uid, alias_symbol_type(type));
 
-    if (type != NULL)
+    if (type != NULL) {
+        resolve_decorators(&type->decorators, &type->flags);
         return;
+    }
 
     type = find_custom_type(context, CUST_STRUCT, data_type->custom_name, data_type->custom_length,
         data_type->module_uid != DATA_TYPE_IGNORE_MODULE ? (size_t)data_type->module_uid : module_uid);
     replace_identifier_if_aliased(context, &data_type->custom_name, &data_type->custom_length, 
         module_uid, alias_symbol_type(type));
 
-    if (type != NULL)
+    if (type != NULL) {
+        resolve_decorators(&type->decorators, &type->flags);
         return;
+    }
 
     log(ERROR_CRITICAL, source->path, source->ln, source->col,
         "Undefined data type '%.*s'\n", (int)data_type->custom_length, data_type->custom_name);
@@ -627,20 +652,6 @@ static void resolve_value(Context *context, AST **ast) {
     }
 }
 
-static void resolve_decorator(AST *ast, Symbol *symbol) {
-    if (compare_string(ast->decorator.name, ast->declaration.name_length, "ignore_missing_return", 21))
-        symbol->flags |= DECOR_IGNORE_MISSING_RETURN;
-    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "onetime_arguments", 17))
-        symbol->flags |= DECOR_ONETIME_ARGUMENTS;
-    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "omit_frame_pointer", 18))
-        symbol->flags |= DECOR_OMIT_FRAME_POINTER;
-    else if (compare_string(ast->decorator.name, ast->declaration.name_length, "extern", 6))
-        symbol->flags |= DECOR_EXTERN_FUNCTION;
-    else
-        log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
-            "Undefined decorator '%.*s'\n", (int)ast->decorator.name_length, ast->decorator.name);
-}
-
 static void resolve_function(Context *context, AST *ast) {
     Scope *function_inner_scope = NULL;
 
@@ -688,9 +699,7 @@ static void resolve_function(Context *context, AST *ast) {
     }
 
     resolve_ast_list(context, &ast->function.body);
-
-    for (size_t i = 0; i < ast->function.decorators.count; i++)
-        resolve_decorator(((AST **)ast->function.decorators.items)[i], sym);
+    resolve_decorators(&ast->function.decorators, &sym->flags);
 
     AST *return_stmt = NULL;
 

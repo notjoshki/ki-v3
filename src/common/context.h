@@ -73,6 +73,8 @@ struct Custom_Type {
     size_t member_capacity;
     Data_Type enum_data_type;
     size_t group_uid;
+    List decorators;
+    size_t flags;
     bool resolved;
     bool exported;
 };
@@ -193,7 +195,7 @@ static inline Alias_Symbol alias_symbol_module(size_t module_uid) {
 Context create_context(char *entrypoint_function, bool freestanding);
 void delete_context(Context *context, const bool free_modules);
 
-Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, size_t group_uid);
+Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, List decorators, size_t group_uid);
 bool found_identifier_in_imported_module_identifiers(const char *name, const size_t length, const Module *module);
 bool found_group_in_imported_module_groups(const size_t group_uid, const Module *module);
 Custom_Type *find_custom_type(Context *context, const Custom_Type_Kind type, const char *name, const size_t length, const size_t module_uid);

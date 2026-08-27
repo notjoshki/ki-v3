@@ -27,6 +27,7 @@ INADDR_ANY: const 0x00000000; // 127.0.0.1
 IPPROTO_IP: const 0;
 }
 
+@packed
 #structures
 Socket_Address: struct {
     family: u16;
@@ -34,12 +35,13 @@ Socket_Address: struct {
     data: u8[12];
 }
 
+@packed
 #structures
 Socket_Address_In: struct {
     family: u16;
     port: u16;
     address: u32;
-    _padding: i64;
+    _padding: u64 = 0;
 }
 
 // TODO: When possible, I'd like this as a macro.
