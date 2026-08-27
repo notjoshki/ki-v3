@@ -652,7 +652,11 @@ static char *emit_store(State *state, LIR_Instruction *inst) {
             sprintf(code, "mov %s, %s\n", dst_str, reg);
 
         free(reg);
-    } else
+    } else if (src_is_float)
+        sprintf(code, "cvtts%c2si %s, %s\n"
+                      "mov %s, %s\n", float_type_char(src_type), temporary_register(REGISTER_3, PRIM_I64), src_str,
+                      dst_str, temporary_register(REGISTER_3, type));
+    else
         sprintf(code, "mov %s, %s\n", dst_str, src_str);
 
     free(dst_str);
