@@ -18,6 +18,12 @@ Pointers are declared by adding an ampersand before the type name. You can have 
 name: &type = value;
 ```
 
+Arrays are declared with the array size after the type name, and currently the array size must be a constant integer. The only value they can be initialized with is an array initializer.
+
+```rs
+name: type[32];
+```
+
 Here is a list of the primitive Ki data types.
 
 | Type | Description | Size |
