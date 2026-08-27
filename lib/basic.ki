@@ -699,11 +699,10 @@ float_to_string(number: f64, decimal_points: u32 = 2): &string {
 
     exponent: f64 = number - mantissa;
 
-    /*
-    if decimal_points > 3 {
-        exponent -= FLOAT_EPSILON_TOLERANCE;
-    }
-    */
+
+    //if decimal_points > 3 {
+      //  exponent -= FLOAT_EPSILON_TOLERANCE;
+    //}
 
     for i := 0..decimal_points {
         exponent *= 10;

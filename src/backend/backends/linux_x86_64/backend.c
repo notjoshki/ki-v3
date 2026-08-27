@@ -1237,13 +1237,15 @@ static char *emit_reference(State *state, LIR_Instruction *inst) {
 
 static char *emit_neg(State *state, LIR_Instruction *inst) {
     char *dst = lir_operand_to_string(state, &inst->destination);
-    char *code = malloc(strlen(dst) + 64);
+    char *code = malloc(strlen(dst) + 128);
     const Primitive_Type type = data_type_to_primitive_type(&inst->destination.data_type);
 
     if (bin_is_float(type)) {
+        const char *int_reg = temporary_register(REGISTER_3, PRIM_I64);
         const char *reg = temporary_register(REGISTER_3, type);
-        sprintf(code, "pcmpeqd %s, %s\n"
-                      "pxor %s, %s\n", reg, reg, dst, reg);
+        sprintf(code, "mov %s, -1\n"
+                      "cvtsi2s%c %s, %s\n"
+                      "muls%c %s, %s\n", int_reg, float_type_char(type), reg, int_reg, float_type_char(type), dst, reg);
     } else
         sprintf(code, "neg %s\n", dst);
 

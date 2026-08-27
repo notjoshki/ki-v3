@@ -335,7 +335,7 @@ static LIR_Operand hir_condition_to_lir_operand(LIR *lir, HIR_Data *hir, const b
         push_instruction(lir, LIR_POP, t1(type), nop);
 
         push_instruction(lir, LIR_COMPARE, t1(type), t2(type));
-        push_instruction(lir, condition_operator_to_opcode(oper), t1(bool_dt), nop);
+        push_instruction(lir, condition_operator_to_opcode(oper), t1(bool_dt), t1(type));
 
         if (count == 3)
             break;
