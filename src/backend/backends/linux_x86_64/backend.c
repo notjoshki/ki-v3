@@ -629,29 +629,39 @@ static char *emit_store(State *state, LIR_Instruction *inst) {
             free(reg);
         }
     } else if (src_is_register) {
-        char *reg = register_operand_to_string(state, src, type);
-
         // Check if we need to store into a higher bit size of the destination register
         // if the source is a higher bit size than the destination.
         const bool dst_is_lower_bit_size = primitive_type_to_bit_size(type) < primitive_type_to_bit_size(src_type);
 
-        if (dst_is_register && dst_is_lower_bit_size) {
-            char *dst_reg = register_operand_to_string(state, dst, src_type);
+        if (src_is_float) {
+            if (dst_is_register && dst_is_lower_bit_size) {
+                char *dst_reg = register_operand_to_string(state, dst, src_type);
+                sprintf(code, "cvtts%c2si %s, %s\n", float_type_char(src_type), dst_reg, src_str);
+                free(dst_reg);
+            } else if (!dst_is_register && dst_is_lower_bit_size) {
+                src->data_type = dst->data_type;
+                sprintf(code, "cvtts%c2si %s, %s\n", float_type_char(src_type), dst_str, src_str);
+            } else
+                sprintf(code, "cvtts%c2si %s, %s\n", float_type_char(src_type), dst_str, src_str);
+        } else {
+            char *reg = register_operand_to_string(state, src, src_is_float ? src->type : type);
+
+            if (dst_is_register && dst_is_lower_bit_size) {
+                char *dst_reg = register_operand_to_string(state, dst, src_type);
+                free(reg);
+                reg = register_operand_to_string(state, src, src_type);
+                sprintf(code, "mov %s, %s\n", dst_reg, reg);
+                free(dst_reg);
+            } else if (!dst_is_register && dst_is_lower_bit_size) {
+                free(reg);
+                src->data_type = dst->data_type;
+                reg = register_operand_to_string(state, src, type);
+                sprintf(code, "mov %s, %s\n", dst_str, reg);
+            } else
+                sprintf(code, "mov %s, %s\n", dst_str, reg);
 
             free(reg);
-            reg = register_operand_to_string(state, src, src_type);
-
-            sprintf(code, "mov %s, %s\n", dst_reg, reg);
-            free(dst_reg);
-        } else if (!dst_is_register && dst_is_lower_bit_size) {
-            free(reg);
-            src->data_type = dst->data_type;
-            reg = register_operand_to_string(state, src, type);
-            sprintf(code, "mov %s, %s\n", dst_str, reg);
-        } else
-            sprintf(code, "mov %s, %s\n", dst_str, reg);
-
-        free(reg);
+        }
     } else if (src_is_float)
         sprintf(code, "cvtts%c2si %s, %s\n"
                       "mov %s, %s\n", float_type_char(src_type), temporary_register(REGISTER_3, PRIM_I64), src_str,
