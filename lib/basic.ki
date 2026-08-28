@@ -250,6 +250,23 @@ append_string(destination: &string, source: &string) {
     destination.length = new_length;
 }
 
+// Append a &char onto an &string.
+#strings
+append_string_buffer(destination: &string, source: &char, length: usize) {
+    new_length: usize = destination.length + length;
+    reserve_string(destination, new_length);
+
+    j: usize = destination.length;
+
+    for i := 0..length {
+        destination.data[j] = source[i];
+        j += 1;
+    }
+
+    destination.data[j] = '\0';
+    destination.length = new_length;
+}
+
 // Append a range of characters from one string onto another.
 #strings
 append_string_slice(destination: &string, source: &string, start: usize, end: usize) {
