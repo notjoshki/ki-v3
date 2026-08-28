@@ -16,6 +16,7 @@
 #define COMP_FREESTANDING 0x200
 #define COMP_COMPILE_ASM 0x400
 #define COMP_DOC_EXPORTED 0x800
+#define COMP_SOURCE_LIBS 0x1000
 
 typedef struct {
     char *assembler_path;

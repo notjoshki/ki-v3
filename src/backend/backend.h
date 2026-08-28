@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const bool initialize_heap);
+char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const bool initialize_heap, const bool show_lib_externs);
 
 // The following functions are defined in the backend but utilized by the optimizer.
 

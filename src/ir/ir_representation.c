@@ -1,6 +1,7 @@
 #include "ir_representation.h"
 #include "lir.h"
 #include "string_builder.h"
+#include "decorators.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -244,7 +245,11 @@ static char *lir_instruction_to_string_implicit(LIR_Instruction *inst) {
     return str;
 }
 
-static char *lir_instruction_to_string(LIR_Instruction *inst, const bool explicit) {
+static char *lir_instruction_to_string(LIR_Instruction *inst, const bool explicit, const bool show_lib_externs) {
+    // This function wasn't decorated, so we know it is a lib extern.
+    if (!show_lib_externs && inst->type == LIR_EXTERN && !(inst->source.function.flags & DECOR_EXTERN_FUNCTION))
+        return calloc(1, sizeof(char));
+
     if (!explicit)
         return lir_instruction_to_string_implicit(inst);
 
@@ -407,11 +412,11 @@ static void format_lir_string(String_Builder *builder) {
     }
 }
 
-char *lir_to_string(LIR *lir, const bool explicit_) {
+char *lir_to_string(LIR *lir, const bool explicit_, const bool show_lib_externs) {
     String_Builder builder = create_string_builder();
 
     for (size_t i = 0; i < lir->count; i++) {
-        char *str = lir_instruction_to_string(&lir->instructions[i], explicit_);
+        char *str = lir_instruction_to_string(&lir->instructions[i], explicit_, show_lib_externs);
         append_whole_string(&builder, str);
         free(str);
     }

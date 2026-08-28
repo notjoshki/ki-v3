@@ -30,6 +30,7 @@ static void help(const char *context) {
            "    -ld-flags <\"...\">    Specify flags to pass during linkage\n"
            "    -o <name>            Specify the output filename\n"
            "    -unopt               Disable optimization\n"
+           "    -source-libs         Show library externs in assembly source code\n"
            , context);
 }
 
@@ -124,6 +125,10 @@ static bool parse_command_line(const int argc, char **argv, Compiler *compiler) 
         } else if (strcmp(arg, "-o") == 0 && parse_option_argument(argc, i, "-o", "<name>")) {
             compiler->output_path = argv[++i];
             compiler->options.flags |= COMP_OUTFILE_SPECIFIED;
+        } else if (strcmp(arg, "-source-libs") == 0) {
+            if (option_is_valid_with_command_and_other_options(
+                    (compiler->options.flags & COMP_SOURCE) || (compiler->options.flags & COMP_IR), "-source-libs"))
+                compiler->options.flags |= COMP_SOURCE_LIBS;
         } else if (strcmp(arg, "-unopt") == 0)
             compiler->options.flags |= COMP_UNOPTIMIZED;
         else {

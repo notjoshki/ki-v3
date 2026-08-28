@@ -652,6 +652,53 @@ static HIR function_to_hir(Context *context, AST *ast) {
     for (size_t i = 0; i < ast->function.parameters.count; i++)
         hir.function.parameters[i] = ast_to_hir_data(context, (AST *)ast->function.parameters.items[i]);
 
+    if (ast->function.parameters.count > 0 && compare_string(context->entrypoint_function, context->entrypoint_function_length,
+            ast->function.name, ast->function.name_length)) {
+        // Only allow 2 parameters for the entrypoint function and must be u32 and &&char.
+        if (ast->function.parameters.count != 2)
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Entrypoint function '%.*s' can only have 2 parameters but found %zu\n", 
+                (int)ast->function.name_length, ast->function.name, ast->function.parameters.count);
+
+        const AST *argc_ast = ast->function.parameters.items[0];
+        const HIR_Data *argc = &hir.function.parameters[0];
+
+        if (argc->local_variable.data_type.primitive_type != PRIM_U32 || argc->local_variable.data_type.pointer_count != 0 ||
+                argc->local_variable.data_type.array_size != 0) {
+            char *type = data_type_to_string(&argc_ast->parameter.data_type);
+            log(ERROR_CRITICAL, argc_ast->source.path, argc_ast->source.ln, argc_ast->source.col,
+                "First parameter '%.*s' in entrypoint function expected type 'u32' to be argc but found '%s'\n", 
+                (int)argc_ast->parameter.name_length, argc_ast->parameter.name, type);
+            free(type);
+        }
+
+        if (argc_ast->parameter.default_value != NULL)
+            log(ERROR_CRITICAL, argc_ast->source.path, argc_ast->source.ln, argc_ast->source.col,
+                "First parameter '%.*s' in entrypoint function cannot be defined with a default value\n", 
+                (int)argc_ast->parameter.name_length, argc_ast->parameter.name);
+
+        if (ast->function.parameters.count > 1) {
+            const AST *argv_ast = ast->function.parameters.items[1];
+            const HIR_Data *argv = &hir.function.parameters[1];
+
+            if (argv->local_variable.data_type.primitive_type != PRIM_U8 || argv->local_variable.data_type.pointer_count != 2 ||
+                    argv->local_variable.data_type.array_size != 0) {
+                char *type = data_type_to_string(&argv_ast->parameter.data_type);
+                log(ERROR_CRITICAL, argv_ast->source.path, argv_ast->source.ln, argv_ast->source.col,
+                    "Second parameter '%.*s' in entrypoint function expected type '&&char' to be argv but found '%s'%s\n", 
+                    (int)argv_ast->parameter.name_length, argv_ast->parameter.name, type, 
+                    // Don't allow an array.
+                    argv->local_variable.data_type.array_size == 0 ? "\0" : "; must be a pointer not an array");
+                free(type);
+            }
+
+            if (argv_ast->parameter.default_value != NULL)
+                log(ERROR_CRITICAL, argv_ast->source.path, argv_ast->source.ln, argv_ast->source.col,
+                    "Second parameter '%.*s' in entrypoint function cannot be defined with a default value\n", 
+                    (int)argv_ast->parameter.name_length, argv_ast->parameter.name);
+        }
+    }
+
     HIR_Block block = ast_list_to_block(context, &ast->function.body);
 
     if (block.count == 0 || block.nodes[block.count - 1].type != HIR_RETURN) {
@@ -898,6 +945,7 @@ static HIR import_to_hir(Context *context, AST *ast) {
         ext.extern_.name = sym->name;
         ext.extern_.name_length = sym->name_length;
         ext.extern_.module_uid = sym->module_uid;
+        ext.extern_.is_lib_extern = true;
         push_node(&hir.block, ext);
         index++;
     }

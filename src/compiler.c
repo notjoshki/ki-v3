@@ -75,12 +75,14 @@ static bool compile_from_resolved_root(const Compiler *compiler, Context *contex
     // remove_outfile_path will either be NULL to mean no, or not NULL to be the module name only.
     (void)path_length;
     char *outfile_path = remove_outfile_path == NULL ? path : remove_outfile_path;
+    const bool show_lib_externs = (compiler->options.flags & COMP_SOURCE_LIBS) || !((compiler->options.flags & COMP_SOURCE) ||
+        (compiler->options.flags & COMP_IR));
     
     if (compiler->options.flags & COMP_IR) {
-        code = lir_to_string(&lir, compiler->options.flags & COMP_EXPLICIT_IR);
+        code = lir_to_string(&lir, compiler->options.flags & COMP_EXPLICIT_IR, show_lib_externs);
         *out_output_file = change_file_extension(outfile_path, strlen(outfile_path), "kir");
     } else {
-        code = emit_assembly(context, &lir, entry, !(compiler->options.flags & COMP_FREESTANDING));
+        code = emit_assembly(context, &lir, entry, !(compiler->options.flags & COMP_FREESTANDING), show_lib_externs);
         *out_output_file = change_file_extension(outfile_path, strlen(outfile_path), "asm");
     }
 

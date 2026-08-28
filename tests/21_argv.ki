@@ -1,0 +1,15 @@
+// I don't really like how argv is &&char but it inherits the awful C strings.
+main(argc: u32, argv: &&char) {
+    args := new_string();
+
+    for i := 0..argc {
+        print_format("Argument %: %\n", int_to_string(i), buffer_to_string(argv[i]));
+    }
+
+    for i = 0..argc {
+        append_string_buffer(args, argv[i], buffer_length(argv[i]));
+    }
+
+    println(args);
+    delete_string(args);
+}

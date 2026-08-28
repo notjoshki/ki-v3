@@ -83,7 +83,7 @@ size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, co
 
 static char *emit_instruction(State *state, LIR_Instruction *inst);
 
-char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const bool initialize_heap) {
+char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const bool initialize_heap, const bool show_lib_externs) {
     State state = create_state(context);
     String_Builder builder = create_string_builder();
         
@@ -99,6 +99,9 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
 
         if (initialize_heap)
             append_whole_string(&builder, "call _basic____internal_allocate_heap\n");
+
+        if (entrypoint != NULL)
+            append_whole_string(&builder, "pop rdi\nlea rsi, [rsp]\n");
         
         append_whole_string(&builder, "call ");
         append_whole_string(&builder, name);
@@ -113,7 +116,13 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
         append_whole_string(&builder, "default abs\nsection .text\n");
 
     for (size_t i = 0; i < lir->count; i++) {
-        char *code = emit_instruction(&state, &lir->instructions[i]);
+        LIR_Instruction *inst = &lir->instructions[i];
+
+        // This function wasn't decorated so we know it's a lib extern.
+        if (!show_lib_externs && inst->type == LIR_EXTERN && !(inst->source.function.flags & DECOR_EXTERN_FUNCTION))
+            continue;
+
+        char *code = emit_instruction(&state, inst);
         append_whole_string(&builder, code);
         free(code);
     }

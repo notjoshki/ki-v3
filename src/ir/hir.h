@@ -245,6 +245,7 @@ typedef struct {
     char *name;
     size_t name_length;
     size_t module_uid;
+    bool is_lib_extern;
 } HIR_Extern;
 
 struct HIR {

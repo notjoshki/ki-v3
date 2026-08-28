@@ -84,6 +84,7 @@ ki <command> [options...] <file>
 | ```-ld <path>``` | Specify the linker to use in compilation |
 | ```-ld-flags <...>``` | Specify flags to pass during linkage |
 | ```-o <name>``` | Specify the output filename |
+| ```-source-libs``` | Show library externs in assembly source code |
 | ```-unopt``` | Disable optimization |
 
 ## License
