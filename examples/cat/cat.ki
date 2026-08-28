@@ -1,0 +1,32 @@
+main(argc: u32, argv: &&char) {
+    if argc < 2 {
+        usage(argv[0]);
+        return;
+    }
+
+    filename := buffer_to_string(argv[1]);
+    file := open_file(filename, 'r');
+
+    if file < 0 {
+        print_format("No such file '%' exists\n", filename);
+        delete_string(filename);
+        return;
+    }
+
+    contents: char[16384];
+    size := read_file(file, contents, 16383);
+    assert(size >= 0, "Failed to read file");
+
+    str := buffer_to_string(contents);
+    print(str);
+    delete_string(str);
+
+    close_file(file);
+    delete_string(filename);
+}
+
+usage(program: &char) {
+    program_str := buffer_to_string(program);
+    print_format("Usage: % <filename>\n", program_str);
+    delete_string(program_str);
+}
