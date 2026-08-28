@@ -167,6 +167,14 @@ copy_string(str: &string): &string {
     return new;
 }
 
+// Allocate a new string and copy the buffer into it.
+#strings
+copy_string_buffer(buffer: &char, size: usize): &string {
+    str := new_string(size);
+    assign_string_from_buffer(str, buffer, size);
+    return str;
+}
+
 // Allocate a new string and copy the characters from a range within another string into it.
 #strings
 copy_string_slice(str: &string, start: usize, end: usize): &string {
@@ -794,16 +802,16 @@ close_file(file: File): bool {
     return system.close(file) == 0;
 }
 
-// Write to a file descriptor.
+// Write to a file descriptor. Returns the number of characters written, or a negative number on failure.
 #io
-write_file(file: File, text: &string): bool {
-    return system.write(file, text.data, text.length) > -1;
+write_file(file: File, text: &string): i32 {
+    return system.write(file, text.data, text.length);
 }
 
-// Read from a file descriptor.
+// Read from a file descriptor. Returns the number of characters read, or a negative number on failure.
 #io
-read_file(file: File, buffer: &char, capacity: usize): bool {
-    return system.read(file, buffer, capacity) > -1;
+read_file(file: File, buffer: &char, capacity: usize): i32 {
+    return system.read(file, buffer, capacity);
 }
 
 // Create a new file. Returns a negative number on failure.
