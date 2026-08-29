@@ -101,18 +101,6 @@ static bool compile_from_resolved_root(const Compiler *compiler, Context *contex
     return status;
 }
 
-static void import_builtin_libraries(AST *unresolved_main_root) {
-    const char *basic_path = KI_LIB_DIRECTORY "/basic.ki";
-    AST *basic = new_ast(AST_IMPORT, ast_location(unresolved_main_root), unresolved_main_root->uid);
-    basic->import.path = copy_string(basic_path, strlen(basic_path));
-    basic->import.path_length = strlen(basic_path);
-    basic->import.from_groups = create_list(sizeof(AST *));
-    basic->import.from_identifiers = create_list(sizeof(AST *));
-    basic->import.as_name = NULL;
-    basic->import.use_all_symbols = true;
-    push_item(&unresolved_main_root->root.nodes, (AST *)basic);
-}
-
 static bool compile_main_module(const Compiler *compiler, Context *context, char *path, size_t path_length, char **out_output_file, AST **out_root) {
     char *directory;
     size_t directory_len;
@@ -120,9 +108,6 @@ static bool compile_main_module(const Compiler *compiler, Context *context, char
 
     Parser *parser;
     AST *root = initialize_root(context, name, strlen(name), path, path_length, directory, directory_len, false, &parser);
-
-    if (!(compiler->options.flags & COMP_FREESTANDING))
-        import_builtin_libraries(root);
 
     parse_root(root, parser);
     free(directory);
@@ -299,9 +284,6 @@ static bool compile_only_main_to_markdown(Compiler *compiler, Context *context) 
     AST *root = initialize_root(context, name, name_len, compiler->input_path, strlen(compiler->input_path), 
         directory, directory_len, true, &parser);
     free(directory);
-
-    if (!(compiler->options.flags & COMP_FREESTANDING))
-        import_builtin_libraries(root);
 
     parse_root(root, parser);
 

@@ -8,6 +8,7 @@
 #include "data_type.h"
 #include "utilities.h"
 #include "logger.h"
+#include "resolver.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1460,6 +1461,18 @@ static AST *parse(Parser *parser) {
     return stmt;
 }
 
+static void import_builtin_libraries(AST *unresolved_main_root) {
+    const char *basic_path = KI_LIB_DIRECTORY "/basic.ki";
+    AST *basic = new_ast(AST_IMPORT, ast_location(unresolved_main_root), unresolved_main_root->uid);
+    basic->import.path = copy_string(basic_path, strlen(basic_path));
+    basic->import.path_length = strlen(basic_path);
+    basic->import.from_groups = create_list(sizeof(AST *));
+    basic->import.from_identifiers = create_list(sizeof(AST *));
+    basic->import.as_name = NULL;
+    basic->import.use_all_symbols = true;
+    push_item(&unresolved_main_root->root.nodes, (AST *)basic);
+}
+
 AST *initialize_root(Context *context, char *module, size_t module_length, char *path, size_t path_length,
         char *directory, size_t directory_length, bool tokenize_comments, Parser **out_parser) {
     // Originally this was a stack allocated parser.
@@ -1470,6 +1483,10 @@ AST *initialize_root(Context *context, char *module, size_t module_length, char 
     push_builtin_data(context, root);
     root->root.nodes = create_list(sizeof(AST *));
     *out_parser = prs;
+
+    if (!context->freestanding)
+        import_builtin_libraries(root);
+
     return root;
 }
 
