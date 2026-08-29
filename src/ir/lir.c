@@ -421,7 +421,19 @@ static LIR_Operand hir_index_to_lir_operand(LIR *lir, HIR_Data *data) {
     push_instruction(lir, LIR_POP, t1(index_type), nop);
     push_instruction(lir, LIR_ADD, t1(index_type), t2(index_type));
 
-    if (lir->flags & IR_NO_DEREFERENCE) {
+    bool is_struct = false;
+
+    if (item_type.primitive_type == PRIM_CUSTOM) {
+        // Structs shouldn't be dereferenced before returning as they aren't actually separate pointers,
+        // they are just a set of variables in memory accessed by 1 pointer, they're just next to eachother.
+        // We want to go in to the below condition.
+        Custom_Type *type = find_custom_type(lir->context, CUST_STRUCT, item_type.custom_name, item_type.custom_length,
+            item_type.module_uid == -1 ? data->module_uid : (size_t)item_type.module_uid);
+
+        is_struct = type != NULL;
+    }
+
+    if (lir->flags & IR_NO_DEREFERENCE || is_struct) {
         item_type.pointer_count++;
         return t1(item_type);
     }

@@ -244,6 +244,8 @@ static Token lex_string(Lexer *lexer) {
         step(lexer);
     }
 
+    value[length] = '\0'; // Need this for continuous string constants to be appended.
+
     if (lexer->current_char != '"')
         log(ERROR_CRITICAL, lexer->path, ln, col,
             "Unclosed string literal\n");
@@ -259,10 +261,15 @@ static Token lex_string(Lexer *lexer) {
 
         while (lexer->current_char == '"') {
             next = lex_string(lexer);
-            value = realloc(value, (length + next.length + 1) * sizeof(char));
-            strcat(value, next.value);
-            free(next.value);
+
+            while (length + next.length > capacity)
+                capacity *= 2;
+
+            value = realloc(value, capacity + 1);
+            strncat(value, next.value, next.length);
             length += next.length;
+            value[length] = '\0';
+            free(next.value);
 
             while (isspace(lexer->current_char))
                 step(lexer);

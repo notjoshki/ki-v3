@@ -36,18 +36,6 @@ static inline char extension_type_to_char(const Primitive_Type primitive_type) {
     return bin_is_unsigned(primitive_type) ? 'z' : 's';
 }
 
-/*
-static size_t packed_struct_to_size(const Custom_Type *type) {
-    size_t size = 0;
-
-    for (size_t i = 0; i < type->member_count; i++)
-        size += primitive_type_to_size(data_type_to_primitive_type(&type->members[i].data_type))
-            * (type->members[i].data_type.array_size == 0 ? 1 : type->members[i].data_type.array_size);
-
-    return size;
-}
-*/
-
 size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const Module *module) {
     Custom_Type *type = find_custom_type(context, CUST_STRUCT, data_type->custom_name, data_type->custom_length, 
         data_type->module_name != NULL ? (size_t)data_type->module_uid : (module == NULL ? 0 : module->uid));
@@ -101,7 +89,7 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
             append_whole_string(&builder, "call _basic____internal_allocate_heap\n");
 
         if (entrypoint != NULL)
-            append_whole_string(&builder, "pop rdi\nlea rsi, [rsp]\n");
+            append_whole_string(&builder, "mov rdi, qword [rsp]\nlea rsi, [rsp+8]\n");
         
         append_whole_string(&builder, "call ");
         append_whole_string(&builder, name);
