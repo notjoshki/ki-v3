@@ -794,7 +794,6 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
             received.array_size = expected.array_size = 0;
         }
 
-        printf(">>>%s, %s\n", data_type_to_string(&expected), data_type_to_string(&received));
         check_data_types_are_compatible(context, &ast->source, ast->module_uid, expected, received);
     }
 
