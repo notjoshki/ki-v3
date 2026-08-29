@@ -156,7 +156,23 @@ static void check_data_types_are_compatible(Context *context, const Source *sour
         char *received_str = data_type_to_string(&received);
 
         log(ERROR_CRITICAL, source->path, source->ln, source->col, 
-            "Conflicting pointer types; found '%s' when expecting '%s'\n", received_str, expected_str);
+            "Incompatible pointer types; found '%s' when expecting '%s'\n", received_str, expected_str);
+
+        free(expected_str);
+        free(received_str);
+    }
+
+    if (hir_expected.primitive_type != PRIM_CUSTOM && received.primitive_type != PRIM_CUSTOM) {
+        delete_data_type(&hir_expected);
+        return;
+    }
+
+    if (!compare_string(hir_expected.custom_name, hir_expected.custom_length, received.custom_name, received.custom_length)) {
+        char *expected_str = data_type_to_string(&hir_expected);
+        char *received_str = data_type_to_string(&received);
+
+        log(ERROR_CRITICAL, source->path, source->ln, source->col, 
+            "Incompatible types; found '%s' when expecting '%s'\n", received_str, expected_str);
 
         free(expected_str);
         free(received_str);
@@ -778,6 +794,7 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
             received.array_size = expected.array_size = 0;
         }
 
+        printf(">>>%s, %s\n", data_type_to_string(&expected), data_type_to_string(&received));
         check_data_types_are_compatible(context, &ast->source, ast->module_uid, expected, received);
     }
 
