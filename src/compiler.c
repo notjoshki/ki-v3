@@ -173,6 +173,7 @@ static bool compile_modules(Compiler *compiler, Context *context, char *main_pat
 
         if (!compile_from_resolved_root(compiler, context, module->path, module->path_length, module->root, false, &files[*out_count], module->name)) {
             cleanup(NULL, files, roots, *out_count + 1, false);
+            free(modules);
             return false;
         }
 
