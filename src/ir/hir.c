@@ -338,6 +338,7 @@ static HIR_Data variable_to_hir_data(Context *context, AST *ast) {
     data.local_variable.data_type = ast_data_type_to_hir_data_type(context, symbol->data_type, NULL, ast->module_uid);
     data.local_variable.variable_uid = symbol->attribute.variable_uid;
     data.local_variable.uid = symbol->uid;
+    data.module_uid = ast->module_uid;
     return data;
 }
 
@@ -348,6 +349,7 @@ static HIR_Data parameter_to_hir_data(Context *context, AST *ast) {
     data.local_variable.data_type = ast_data_type_to_hir_data_type(context, &ast->parameter.data_type, ast->parameter.default_value, ast->module_uid);
     data.local_variable.variable_uid = ast->parameter.variable_uid;
     data.local_variable.uid = ast->uid;
+    data.module_uid = ast->module_uid;
     return data;
 }
 
@@ -659,6 +661,7 @@ static HIR function_to_hir(Context *context, AST *ast) {
     hir.function.name_length = ast->function.name_length;
     hir.function.module_uid = ast->module_uid;
     hir.function.data_type = ast_data_type_to_hir_data_type(context, &ast->function.data_type, NULL, ast->module_uid);
+    hir.function.module_uid = ast->module_uid;
     hir.function.exported = symbol->exported;
     hir.function.flags = symbol->flags;
 
@@ -744,6 +747,7 @@ static HIR declaration_to_hir(Context *context, AST *ast) {
     hir.declaration.uid = ast->uid;
     hir.declaration.name = ast->declaration.name;
     hir.declaration.name_length = ast->declaration.name_length;
+    hir.declaration.module_uid = ast->module_uid;
     hir.declaration.data_type = ast_data_type_to_hir_data_type(context, &ast->declaration.data_type, ast->declaration.value, 
         ast->declaration.data_type.module_name != NULL ? (size_t)ast->declaration.data_type.module_uid : ast->module_uid);
 

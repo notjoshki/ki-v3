@@ -206,6 +206,7 @@ typedef struct {
     HIR_Data value;
     size_t variable_uid;
     size_t uid;
+    size_t module_uid;
 } HIR_Declaration;
 
 typedef struct {

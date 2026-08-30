@@ -11,7 +11,7 @@ char *emit_assembly(Context *context, LIR *lir, const Symbol *entrypoint, const 
 
 // The following functions are defined in the backend but utilized by the optimizer.
 
-size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const Module *module);
+size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const size_t module_uid);
 size_t primitive_type_to_size(const Primitive_Type type);
 size_t primitive_type_to_bit_size(const Primitive_Type type);
 size_t data_type_to_bit_size(const Data_Type *dt);

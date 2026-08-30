@@ -289,10 +289,14 @@ static void optimize_math_operations(Optimizer *optimizer) {
         size_t size;
 
         if (this_inst->source.sizeof_.data_type.primitive_type == PRIM_CUSTOM) {
-            if (this_inst->source.sizeof_.data_type.pointer_count == 0)
+            if (this_inst->source.sizeof_.data_type.pointer_count == 0) {
+                if (this_inst->source.sizeof_.data_type.module_uid == -1)
+                    assert(this_inst->source.data_type.module_uid != -1);
+
                 size = struct_data_type_to_size(optimizer->context, &this_inst->source.sizeof_.data_type, 
-                    get_module(optimizer->context, (size_t)this_inst->source.data_type.module_uid));
-            else
+                    this_inst->source.sizeof_.data_type.module_uid != -1 ? 
+                    this_inst->source.sizeof_.data_type.module_uid : this_inst->source.data_type.module_uid);
+            } else
                 size = 8;
         } else
             size = primitive_type_to_size(data_type_to_primitive_type(&this_inst->source.sizeof_.data_type));

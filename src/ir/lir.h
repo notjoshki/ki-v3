@@ -82,6 +82,7 @@ typedef struct {
 typedef struct {
     LIR_Operand_Type type;
     Data_Type data_type;
+    size_t module_uid;
 
     union {
         LIR_Int int_;

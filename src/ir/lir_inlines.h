@@ -24,8 +24,8 @@ static inline LIR_Operand lir_register(Data_Type data_type, size_t number, bool 
         .register_.number = number, .register_.temporary = temporary };
 }
 
-static inline LIR_Operand lir_local_variable(Data_Type data_type, size_t uid, size_t variable_uid, bool exists_from_callee) {
-    return (LIR_Operand){ .type = OPER_LOCAL_VARIABLE, .data_type = data_type, 
+static inline LIR_Operand lir_local_variable(Data_Type data_type, size_t module_uid, size_t uid, size_t variable_uid, bool exists_from_callee) {
+    return (LIR_Operand){ .type = OPER_LOCAL_VARIABLE, .data_type = data_type, .module_uid = module_uid,
         .local_variable.uid = uid, .local_variable.variable_uid = variable_uid, 
         .local_variable.exists_from_callee = exists_from_callee };
 }

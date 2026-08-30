@@ -106,7 +106,7 @@ static LIR_Operand hir_literal_to_lir_operand(HIR_Data *data) {
 }
 
 static inline LIR_Operand hir_local_variable_to_lir_operand(HIR_Data *data) {
-    return lir_local_variable(data->local_variable.data_type, data->local_variable.uid, data->local_variable.variable_uid, false);
+    return lir_local_variable(data->local_variable.data_type, data->module_uid, data->local_variable.uid, data->local_variable.variable_uid, false);
 }
 
 #define HIGHEST_PREC 2
@@ -387,8 +387,7 @@ static LIR_Operand hir_index_to_lir_operand(LIR *lir, HIR_Data *data) {
     size_t item_size;
 
     if (item_type.primitive_type == PRIM_CUSTOM)
-        item_size = struct_data_type_to_size(lir->context, &item_type, 
-            get_module(lir->context, item_type.module_name != NULL ? (size_t)item_type.module_uid : data->module_uid));
+        item_size = struct_data_type_to_size(lir->context, &item_type, item_type.module_uid == -1 ? data->module_uid : (size_t)item_type.module_uid);
     else
         item_size = primitive_type_to_size(data_type_to_primitive_type(&item_type));
 
@@ -583,7 +582,8 @@ static void push_function(LIR *lir, HIR *hir) {
 
         for (size_t i = 0; i < hir->function.parameter_count; i++) {
             Data_Type dt = params[i].local_variable.data_type;
-            push_instruction(lir, LIR_STORE, lir_local_variable(dt, params[i].local_variable.uid, params[i].local_variable.variable_uid, true),
+            push_instruction(lir, LIR_STORE, lir_local_variable(dt, hir->function.module_uid, 
+                params[i].local_variable.uid, params[i].local_variable.variable_uid, true),
                 lir_argument(dt, i, hir->function.parameter_count, ints, floats, false));
 
             if (dt_is_float(dt))
@@ -617,7 +617,7 @@ static void store_struct_initializer(LIR *lir, HIR_Data *lhs, HIR_Data *rhs) {
             rhs->struct_initializer.annotations[i], rhs->struct_initializer.annotation_lengths[i]);// get_custom_type_member(lir->context, type->uid, i);
         assert(member != NULL);
 
-        HIR_Data hir_member = (HIR_Data){ .type = DATA_STRUCT_MEMBER, .struct_member = {
+        HIR_Data hir_member = (HIR_Data){ .type = DATA_STRUCT_MEMBER, .module_uid = type->module_uid, .struct_member = {
             .custom_type_symbol_uid = type->uid, .member_symbol_uid = member->uid, .lhs = lhs 
         } };
 
@@ -680,7 +680,7 @@ static void push_array_initializer_assignment(LIR *lir, HIR_Data *lhs, HIR_Data 
 }
 
 static void push_declaration(LIR *lir, HIR *hir) {
-    LIR_Operand var = lir_local_variable(hir->declaration.data_type, hir->declaration.uid, hir->declaration.variable_uid, false);
+    LIR_Operand var = lir_local_variable(hir->declaration.data_type, hir->declaration.module_uid, hir->declaration.uid, hir->declaration.variable_uid, false);
 
     if (hir->declaration.value.type == DATA_NONE) {
         push_instruction(lir, LIR_STORE, var, nop);

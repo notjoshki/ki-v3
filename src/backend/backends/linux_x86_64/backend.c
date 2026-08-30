@@ -36,9 +36,9 @@ static inline char extension_type_to_char(const Primitive_Type primitive_type) {
     return bin_is_unsigned(primitive_type) ? 'z' : 's';
 }
 
-size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const Module *module) {
+size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, const size_t module_uid) {
     Custom_Type *type = find_custom_type(context, CUST_STRUCT, data_type->custom_name, data_type->custom_length, 
-        data_type->module_name != NULL ? (size_t)data_type->module_uid : (module == NULL ? 0 : module->uid));
+        data_type->module_uid != -1 ? (size_t)data_type->module_uid : module_uid);
 
     assert(type != NULL);
     const bool is_packed = type->flags & DECOR_PACKED_STRUCT;
@@ -233,8 +233,7 @@ static char *sizeof_operand_to_string(State *state, LIR_Operand *operand) {
 
     if (operand->sizeof_.data_type.primitive_type == PRIM_CUSTOM) {
         if (operand->sizeof_.data_type.pointer_count == 0)
-            sprintf(str, "%zu", struct_data_type_to_size(state->context, &operand->sizeof_.data_type, 
-                get_module(state->context, (size_t)operand->data_type.module_uid)));
+            sprintf(str, "%zu", struct_data_type_to_size(state->context, &operand->sizeof_.data_type, operand->data_type.module_uid));
         else
             strcpy(str, "8");
     } else
@@ -534,7 +533,8 @@ static char *allocate_variable_if_needed(State *state, LIR_Instruction *inst) {
     size_t type_size;
 
     if (inst->destination.data_type.primitive_type == PRIM_CUSTOM && inst->destination.data_type.pointer_count == 0)
-        type_size = struct_data_type_to_size(state->context, &inst->destination.data_type, FIND_IN_ANY_MODULE);
+        type_size = struct_data_type_to_size(state->context, &inst->destination.data_type, 
+            inst->destination.data_type.module_uid != -1 ? (size_t)inst->destination.data_type.module_uid : inst->destination.module_uid);
     else
         type_size = primitive_type_to_size(data_type_to_primitive_type(&inst->destination.data_type));
 
