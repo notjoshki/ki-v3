@@ -396,15 +396,24 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
 
     char *code = malloc((strlen(dst_str) * 3) + strlen(src_str) + 64);
 
-    /* I just can't be bothered to fix this damn rel issue.
-    if (src->type == OPER_STRING) {
+    // Only auto-allocate strings if we have the stdlib.
+    if (src->type == OPER_STRING && !state->context->freestanding) {
         assert(!bin_is_float(dst_type));
-        sprintf(code, "lea %s, [%s]\n", dst_str, src_str);
-        free(dst_str);
+        sprintf(code, "mov rdi, %s\n"
+                      "call _basic__copy_string\n", src_str);
         free(src_str);
+
+        LIR_Instruction load = (LIR_Instruction){ .type = LIR_LOAD, .destination = inst->destination, .source = 
+            (LIR_Operand){ .type = OPER_REGISTER, .register_ = (LIR_Register){ .number = 0, .temporary = false }}};
+
+        char *load_str = emit_instruction(state, &load);
+        free(dst_str);
+
+        code = realloc(code, strlen(code) + strlen(load_str) + 1);
+        strcat(code, load_str);
+        free(load_str);
         return code;
     }
-    */
     
     switch (dst_type) {
         case PRIM_F32:
