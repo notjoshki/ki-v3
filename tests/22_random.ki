@@ -1,0 +1,13 @@
+main() {
+    print_format("CPU random number: %\n", int_to_string(random_int()));
+    print_format("CPU random number: %\n", int_to_string(random_int()));
+    print_format("CPU random number: %\n", int_to_string(random_int()));
+
+    print_format("Random number 1-10: %\n", int_to_string(random_int_in_range(1, 10)));
+    print_format("Random number 1-10: %\n", int_to_string(random_int_in_range(1, 10)));
+    print_format("Random number 1-10: %\n", int_to_string(random_int_in_range(1, 10)));
+
+    print_format("Random number -5-15: %\n", int_to_string(random_int_in_range(-5, 15)));
+    print_format("Random number -5-15: %\n", int_to_string(random_int_in_range(-5, 15)));
+    print_format("Random number -5-15: %\n", int_to_string(random_int_in_range(-5, 15)));
+}

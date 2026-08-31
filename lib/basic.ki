@@ -2,7 +2,7 @@
 // https://github.com/notjoshki/ki-v3
 
 import system;
-export #io, #memory, #strings, #debugging, #math;
+export #io, #memory, #strings, #debugging, #math, #random;
 
 // 17 pages of 4KiB = 65 Kib, 16 pages for data and 1 for the guard page.
 HEAP_SIZE: const 65536;
@@ -1097,4 +1097,25 @@ ceil(x: f64): f64 {
     }
 
     return int;
+}
+
+// Generate a hardware-random integer. Failure is unlikely, but in that case return 0.
+@ignore_missing_return
+@omit_frame_pointer
+#random
+random_int(): i64 {
+    // Intel suggests 10 tries at rdrand since the CPU can be busy, CF=1 on success.
+    asm("xor rcx, rcx\n.try:\nrdrand rax\njc .success\ninc rcx\ncmp rcx, 10\nje .fail\njmp .try\n.fail:\nxor rax, rax\n.success:\nret\n");
+}
+
+// Generate a random integer within a range (includes minimum and maximum values). Failure is unlikely, but in that case return 0.
+#random
+random_int_in_range(minimum: i64, maximum: i64): i64 {
+    hw_rand := random_int();
+
+    if hw_rand == 0 {
+        return 0;
+    }
+
+    return hw_rand % (maximum - minimum + 1) + minimum;
 }
