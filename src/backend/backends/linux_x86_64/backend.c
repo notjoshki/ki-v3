@@ -63,8 +63,10 @@ size_t struct_data_type_to_size(Context *context, const Data_Type *data_type, co
         size += member_size;
     }
 
-    while (size % 4 != 0)
-        size++;
+    if (!is_packed) {
+        while (size % 4 != 0)
+            size++;
+    }
 
     return size;
 }

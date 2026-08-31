@@ -495,7 +495,9 @@ static LIR_Operand hir_dereference_to_operand(LIR *lir, HIR_Data *data, const bo
 
 static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool dereference) {
     const Custom_Type *type = get_custom_type(lir->context, data->struct_member.custom_type_symbol_uid);
+    assert(type != NULL);
     const Custom_Type_Member *member_symbol = get_custom_type_member(lir->context, type->uid, data->struct_member.member_symbol_uid);
+    assert(member_symbol != NULL);
 
     Data_Type struct_type = get_hir_data_type(lir->context, data->struct_member.lhs);
 
@@ -504,17 +506,36 @@ static LIR_Operand struct_member_to_operand(LIR *lir, HIR_Data *data, const bool
 
     push_load(lir, t1(struct_type), hir_data_to_operand(lir, data->dereference.value));
 
+    const bool is_packed = type->flags & DECOR_PACKED_STRUCT;
+    size_t size = 0;
+
     for (size_t i = 0; i < type->member_count; i++) {
         Custom_Type_Member *member = &type->members[i];
+
+        const Primitive_Type member_type = data_type_to_primitive_type(&type->members[i].data_type);
+        const size_t member_size = primitive_type_to_size(member_type)
+            * (type->members[i].data_type.array_size == 0 ? 1 : type->members[i].data_type.array_size);
+
+        if (!is_packed) {
+            const size_t member_byte_size = primitive_type_to_size(member_type);
+
+            while (size % member_byte_size != 0)
+                size++;
+        }
 
         if (compare_string(member->name, member->name_length, 
                 member_symbol->name, member_symbol->name_length))
             break;
 
-        LIR_Operand size = (LIR_Operand){ .type = OPER_SIZEOF, .data_type = struct_type, .sizeof_.data_type = member->data_type };
-        push_load(lir, t2(struct_type), size);
-        push_instruction(lir, LIR_ADD, t1(struct_type), t2(struct_type));
+        size += member_size;
+
+        //LIR_Operand size = (LIR_Operand){ .type = OPER_SIZEOF, .data_type = struct_type, .sizeof_.data_type = member->data_type };
+        //push_load(lir, t2(struct_type), size);
+        //push_instruction(lir, LIR_ADD, t1(struct_type), t2(struct_type));
     }
+
+    push_load(lir, t2(struct_type), (LIR_Operand){ .type = OPER_INT, .data_type = create_data_type(PRIM_USIZE, 0), .int_.u64 = size });
+    push_instruction(lir, LIR_ADD, t1(struct_type), t2(struct_type));
 
     Data_Type member_type = member_symbol->data_type;
 
