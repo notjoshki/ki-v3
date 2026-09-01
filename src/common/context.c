@@ -15,7 +15,7 @@
 #define CONSTANT_CAPACITY 4
 #define MODULE_CAPACITY 50
 
-Context create_context(char *entrypoint_function, bool freestanding) {
+Context create_context(char *entrypoint_function, bool freestanding, bool readonly_string_constants) {
     return (Context){ .node_uid = 0, 
         .custom_types = malloc(CUSTOM_TYPE_CAPACITY * sizeof(Custom_Type)),
         .custom_type_count = 0, .custom_type_capacity = CUSTOM_TYPE_CAPACITY, 
@@ -29,7 +29,7 @@ Context create_context(char *entrypoint_function, bool freestanding) {
         .symbol_count = 0, .symbol_capacity = SYMBOL_CAPACITY,
         .modules = malloc(MODULE_CAPACITY * sizeof(Module)),
         .module_count = 0, .module_capacity = MODULE_CAPACITY, .scope_stack_count = 0,
-        .freestanding = freestanding };
+        .freestanding = freestanding, .readonly_string_constants = readonly_string_constants };
 }
 
 static void delete_custom_type(Custom_Type *type) {

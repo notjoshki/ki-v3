@@ -312,7 +312,8 @@ static bool compile_only_main_to_markdown(Compiler *compiler, Context *context) 
 }
 
 bool compile(Compiler *compiler) {
-    Context context = create_context("main", compiler->options.flags & COMP_FREESTANDING);
+    Context context = create_context("main", compiler->options.flags & COMP_FREESTANDING, 
+        (compiler->options.flags & COMP_RO_STRINGS) || (compiler->options.flags & COMP_FREESTANDING));
 
     if ((compiler->options.flags & COMP_IR) || (compiler->options.flags & COMP_SOURCE))
         return compile_only_main_to_source(compiler, &context);

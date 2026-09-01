@@ -736,7 +736,6 @@ static void resolve_function(Context *context, AST *ast) {
     else if (!ast->function.no_body && has_extern_decorator)
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
             "Function '%.*s' declared with a body but also decorated as extern\n", (int)ast->function.name_length, ast->function.name);
-
 }
 
 static void check_array_initializer_count(const Source *source, const Data_Type lhs_type, AST *rhs) {
@@ -884,9 +883,23 @@ static void resolve_return(Context *context, AST *ast) {
     Symbol *sym = get_symbol(context, ast->scope.function_uid);
     ast->return_.symbol_uid = ast->scope.function_uid;
 
-    if (sym == NULL)
+    if (sym == NULL) {
         log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
             "Return statement outside of a function\n");
+    } else {
+        if (ast->return_.value == NULL && !(sym->flags & DECOR_IGNORE_MISSING_RETURN) && 
+                (sym->data_type->primitive_type != PRIM_VOID || sym->data_type->pointer_count != 0)) {
+            char *type = data_type_to_string(sym->data_type);
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Missing return value in function '%.*s' of type '%s'\n", (int)sym->name_length, sym->name, type);
+            free(type);
+        } else if (ast->return_.value != NULL && sym->data_type->primitive_type == PRIM_VOID && sym->data_type->pointer_count == 0) {
+            char *type = data_type_to_string(sym->data_type);
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "Unexpected return value in function '%.*s' of type '%s'\n", (int)sym->name_length, sym->name, type);
+            free(type);
+        }
+    }
 
     if (ast->return_.value != NULL)
         resolve_value(context, &ast->return_.value);

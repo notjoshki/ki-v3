@@ -149,6 +149,7 @@ struct Context {
     size_t warning_flags;
     char *entrypoint_function;
     size_t entrypoint_function_length;
+    bool readonly_string_constants;
 };
 
 typedef enum {
@@ -192,7 +193,7 @@ static inline Alias_Symbol alias_symbol_module(size_t module_uid) {
     return (Alias_Symbol){ .kind = ALIAS_MODULE, .module_uid = module_uid };
 }
 
-Context create_context(char *entrypoint_function, bool freestanding);
+Context create_context(char *entrypoint_function, bool freestanding, bool readonly_string_constants);
 void delete_context(Context *context, const bool free_modules);
 
 Custom_Type *new_custom_type(Context *context, Custom_Type_Kind type, Source *source, size_t module_uid, char *name, size_t length, List decorators, size_t group_uid);

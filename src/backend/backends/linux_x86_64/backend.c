@@ -398,7 +398,7 @@ static char *emit_load(State *state, LIR_Instruction *inst) {
     char *code = malloc((strlen(dst_str) * 3) + strlen(src_str) + 64);
 
     // Only auto-allocate strings if we have the stdlib.
-    if (src->type == OPER_STRING && !state->context->freestanding) {
+    if (src->type == OPER_STRING && !state->context->readonly_string_constants) {
         assert(!bin_is_float(dst_type));
         sprintf(code, "mov rdi, %s\n"
                       "call _basic__copy_string\n", src_str);

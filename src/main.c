@@ -29,8 +29,9 @@ static void help(const char *context) {
            "    -ld <path>           Specify the linker to use in compilation\n"
            "    -ld-flags <\"...\">    Specify flags to pass during linkage\n"
            "    -o <name>            Specify the output filename\n"
-           "    -unopt               Disable optimization\n"
+           "    -ro-strings          Disable auto-allocated string constants\n"
            "    -source-libs         Show library externs in assembly source code\n"
+           "    -unopt               Disable optimization\n"
            , context);
 }
 
@@ -129,7 +130,10 @@ static bool parse_command_line(const int argc, char **argv, Compiler *compiler) 
             if (option_is_valid_with_command_and_other_options(
                     (compiler->options.flags & COMP_SOURCE) || (compiler->options.flags & COMP_IR), "-source-libs"))
                 compiler->options.flags |= COMP_SOURCE_LIBS;
-        } else if (strcmp(arg, "-unopt") == 0)
+        } else if (strcmp(arg, "-ro-strings") == 0) {
+            if (option_is_valid_with_command_and_other_options(compiler->options.flags & COMP_COMPILE_ASM, arg))
+                compiler->options.flags |= COMP_RO_STRINGS;
+            } else if (strcmp(arg, "-unopt") == 0)
             compiler->options.flags |= COMP_UNOPTIMIZED;
         else {
             log(ERROR_CRITICAL, LOG_NOFILE, LOG_NOLN, LOG_NOCOL,

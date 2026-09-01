@@ -668,8 +668,20 @@ static HIR function_to_hir(Context *context, AST *ast) {
     hir.function.parameters = malloc(ast->function.parameters.count * sizeof(HIR_Data));
     hir.function.parameter_count = ast->function.parameters.count;
 
-    for (size_t i = 0; i < ast->function.parameters.count; i++)
+    for (size_t i = 0; i < ast->function.parameters.count; i++) {
         hir.function.parameters[i] = ast_to_hir_data(context, (AST *)ast->function.parameters.items[i]);
+        const AST *param = ast->function.parameters.items[i];
+
+        if (param->parameter.data_type.primitive_type == PRIM_CUSTOM && param->parameter.data_type.pointer_count == 0) {
+            // Make sure this is a struct and not an enum/alias.
+            const Custom_Type *type = find_custom_type(context, CUST_STRUCT, param->parameter.data_type.custom_name,
+                param->parameter.data_type.custom_length, param->parameter.data_type.module_uid == -1 ? ast->module_uid : (size_t)param->parameter.data_type.module_uid);
+
+            if (type != NULL)
+                log(ERROR_CRITICAL, param->source.path, param->source.ln, param->source.col,
+                    "UNIMPLEMENTED: Passing stack allocated structs by value is not yet supported\n");
+        }
+    }
 
     if (ast->function.parameters.count > 0 && compare_string(context->entrypoint_function, context->entrypoint_function_length,
             ast->function.name, ast->function.name_length)) {
@@ -728,6 +740,17 @@ static HIR function_to_hir(Context *context, AST *ast) {
     }
 
     hir.function.block = block;
+
+    if (ast->function.data_type.primitive_type == PRIM_CUSTOM && ast->function.data_type.pointer_count == 0) {
+        // Make sure this is a struct and not an enum/alias.
+        const Custom_Type *type = find_custom_type(context, CUST_STRUCT, ast->function.data_type.custom_name,
+            ast->function.data_type.custom_length, ast->function.data_type.module_uid == -1 ? ast->module_uid : (size_t)ast->function.data_type.module_uid);
+
+        if (type != NULL)
+            log(ERROR_CRITICAL, ast->source.path, ast->source.ln, ast->source.col,
+                "UNIMPLEMENTED: Returning stack allocated structs is not yet supported\n");
+    }
+
     return hir;
 }
 
